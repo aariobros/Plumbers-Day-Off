@@ -1,0 +1,8 @@
+[gd_resource type="Theme" format=3 uid="uid://b4d86sqg2c263"]
+
+[ext_resource type="FontFile" uid="uid://bhhicgwj3ylpb" path="res://ninnewsupermariobrost53.otf/ninnewsupermariobrost53.otf" id="1_1wlct"]
+
+[resource]
+resource_local_to_scene = true
+default_font = ExtResource("1_1wlct")
+default_font_size = 64

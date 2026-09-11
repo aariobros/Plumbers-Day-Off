@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://dmfqknwhs8wxr"]
+
+[ext_resource type="Shader" uid="uid://c4j1qdyumqwve" path="res://shaders/atmospheric_shading.gdshader" id="1_edhqc"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1yvig"]
+shader = ExtResource("1_edhqc")
+shader_parameter/target_color = Color(0.972549, 0.72156864, 0.6901961, 1)
+shader_parameter/replacement_color = Color(0.6392157, 0.95686275, 0.92156863, 1)
+shader_parameter/target_color2 = Color(0.78431374, 0.28235295, 0.03137255, 1)
+shader_parameter/replacement_color2 = Color(0, 0.49411765, 0.54509807, 1)
+shader_parameter/target_color3 = Color(0.3019608, 0.3019608, 0.3019608, 1)
+shader_parameter/replacement_color3 = Color(0, 0, 0, 1)
+shader_parameter/tolerance = 0.1
+
+[node name="atmospheric_shader" type="ColorRect"]
+material = SubResource("ShaderMaterial_1yvig")
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(1, 1, 1, 0)

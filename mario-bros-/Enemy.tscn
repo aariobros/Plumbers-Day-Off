@@ -1,0 +1,77 @@
+[gd_scene format=3 uid="uid://cd2uow48yu5ky"]
+
+[ext_resource type="Texture2D" uid="uid://di5a1pv5iuup3" path="res://icon.png" id="1_tt7e2"]
+
+[sub_resource type="GDScript" id="GDScript_gqquq"]
+script/source = "extends CharacterBody2D
+
+const SPEED = 50.0
+const GRAVITY = 900.0
+
+var direction = 1
+
+@onready var floor_detector = $LedgeCheck
+
+func _ready():
+	floor_constant_speed = true
+	floor_snap_length = 12.0
+
+func _physics_process(delta):
+	if not is_on_floor():
+		velocity.y += GRAVITY * delta
+	else:
+		velocity.y = 20
+
+	velocity.x = direction * SPEED
+	move_and_slide()
+
+	if is_on_wall() or (is_on_floor() and not floor_detector.is_colliding()):
+		flip()
+
+func flip():
+	direction *= -1
+	floor_detector.position.x = abs(floor_detector.position.x) * direction
+
+# This function runs when something enters the 'Hitbox' Area2D
+func _on_hitbox_body_entered(body):
+	# Check if the object is the player (adjust \"Player\" to match your script's class name)
+	if body.name == \"player\": 
+		print(\"Player hit!\")
+		# Call a damage function on your player script
+		if body.has_method(\"take_damage\"):
+			body.take_damage(1)
+"
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tt7e2"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_s7bn3"]
+size = Vector2(24, 19)
+
+[node name="CharacterBody2D" type="CharacterBody2D" unique_id=179371096]
+floor_snap_length = 8.0
+script = SubResource("GDScript_gqquq")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1543743542]
+shape = SubResource("RectangleShape2D_tt7e2")
+
+[node name="WallCheck" type="RayCast2D" parent="." unique_id=1733284668]
+position = Vector2(1, 0)
+target_position = Vector2(12, 0)
+
+[node name="LedgeCheck" type="RayCast2D" parent="." unique_id=1827780832]
+position = Vector2(-11, 0)
+target_position = Vector2(0, 32)
+
+[node name="Hitbox" type="Area2D" parent="." unique_id=2135966798]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox" unique_id=356537447]
+position = Vector2(0, 1.5)
+shape = SubResource("RectangleShape2D_s7bn3")
+debug_color = Color(0.7179783, 0.4542758, 0.43982083, 0.41960785)
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1169577456]
+position = Vector2(1.1920929e-06, -2.3841858e-07)
+scale = Vector2(0.31250003, 0.31250003)
+texture = ExtResource("1_tt7e2")
+
+[connection signal="body_entered" from="Hitbox" to="." method="_on_hitbox_body_entered"]

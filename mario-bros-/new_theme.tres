@@ -1,0 +1,7 @@
+[gd_resource type="Theme" format=3 uid="uid://76h3n8y1yyr7"]
+
+[ext_resource type="FontFile" uid="uid://bhhicgwj3ylpb" path="res://ninnewsupermariobrost53.otf/ninnewsupermariobrost53.otf" id="1_amlv4"]
+
+[resource]
+default_font = ExtResource("1_amlv4")
+default_font_size = 32

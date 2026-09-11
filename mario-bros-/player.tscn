@@ -1,0 +1,845 @@
+[gd_scene format=3 uid="uid://dgwrlxtkvl7ge"]
+
+[ext_resource type="Texture2D" uid="uid://blcjlqnf3fbix" path="res://assets/Mario/pixil-frame-0.png" id="1_4flbx"]
+
+[sub_resource type="GDScript" id="GDScript_sh265"]
+script/source = "extends CharacterBody2D
+
+# ---------- signals ----------
+signal health_changed(current_health: int)
+signal player_died
+signal player_respawned
+
+# ---------- checkpoints ----------
+var checkpoint_position: Vector2
+
+# ---------- health ----------
+@export var MAX_HEALTH := 8
+var current_health := MAX_HEALTH
+var invincible_timer := 0.0
+var is_dead := false
+
+# ---------- movement tuning ----------
+@export_group(\"Horizontal\")
+@export var WALK_SPEED := 180.0
+@export var RUN_SPEED := 340.0
+@export var P_SPEED := 600.0        
+@export var SPEED_LIMIT := 720.0    
+@export var ACCEL := 920.0
+@export var FRICTION := 850.0
+@export var SKID_FRICTION := 3800.0 
+@export var AIR_ACCEL := 850.0
+
+@export_group(\"Vertical\")
+@export var JUMP_VELOCITY := -680.0
+@export var GRAVITY := 2400.0
+@export var MAX_FALL := 1200.0
+@export var WALL_SLIDE_SPEED := 170.0 
+@export var WALL_JUMP_PUSH := Vector2(340, -780)
+
+@export_group(\"Moves\")
+@export var DIVE_BOOST := 300.0     
+@export var ROLL_SPEED := 700.0     
+
+@export_group(\"Damage\")
+@export var KNOCKBACK_FORCE := 260.0
+@export var KNOCKBACK_UP_FORCE := -220.0
+@export var DEATH_UPWARD_VELOCITY := -500.0
+@export var DEATH_GRAVITY := 2600.0
+var original_z_index := 0
+@export var DEATH_Z_INDEX := 1000
+
+# ---------- states ----------
+enum State { GROUND, AIR, SKID, WALL, DIVE, GP_STALL, GP_FALL, ROLL, SPIN, BONK, CROUCH, DEATH }
+
+# ---------- runtime ----------
+var current_state := State.GROUND
+var facing := 1
+var p_meter := 0.0 
+var jump_count := 0 
+var state_timer := 0.0 
+var triple_jump_timer := 0.0
+var jump_buffer_timer := 0.0
+var coyote_timer := 0.0
+var wall_jump_lockout := 0.0 
+var is_side_flipping := false
+var wall_grace_timer := 0.0
+var last_wall_normal := Vector2.ZERO
+
+@onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
+
+# ---------- ready ----------
+func _ready():
+	checkpoint_position = global_position  # default spawn
+
+# ---------- checkpoints ----------
+func set_checkpoint(pos: Vector2):
+	checkpoint_position = pos
+
+# ---------- damage ----------
+func take_damage(amount: int, source_pos: Vector2 = global_position) -> void:
+	if is_dead or invincible_timer > 0:
+		return
+
+	current_health -= amount
+	current_health = max(current_health, 0)
+	emit_signal(\"health_changed\", current_health)
+
+	var dir = sign(global_position.x - source_pos.x)
+	if dir == 0:
+		dir = -facing
+	velocity.x = dir * KNOCKBACK_FORCE
+	velocity.y = KNOCKBACK_UP_FORCE
+	facing = sign(velocity.x)
+
+	_change_state(State.BONK)
+
+	invincible_timer = 0.5
+
+	# flash red
+	sprite.modulate = Color(1, 0.5, 0.5)
+	await get_tree().create_timer(0.15).timeout
+	sprite.modulate = Color(1, 1, 1)
+
+	# play hurt animation
+	sprite.play(\"hurt\")
+
+	if current_health <= 0:
+		_die()
+
+# ---------- death ----------
+func _die() -> void:
+	if is_dead:
+		return
+		current_health = 0
+		emit_signal(\"health_changed\", current_health)
+	is_dead = true
+
+	GameManager.death_count += 1
+	GameManager.respawn_position = checkpoint_position
+	GameManager.level_scene_path = get_tree().current_scene.scene_file_path
+
+	get_tree().change_scene_to_file(\"res://death counter.tscn\")
+	emit_signal(\"player_died\")
+
+	velocity = Vector2(0, DEATH_UPWARD_VELOCITY)
+	_change_state(State.DEATH)
+
+	set_collision_layer(0)
+	set_collision_mask(0)
+	original_z_index = z_index
+	z_index = DEATH_Z_INDEX
+
+	sprite.play(\"die\")
+
+# ---------- respawn ----------
+func _get_respawned() -> void:
+	is_dead = false
+	current_health = MAX_HEALTH
+	global_position = checkpoint_position
+	velocity = Vector2.ZERO
+	_change_state(State.GROUND)
+
+	set_collision_layer(1)
+	set_collision_mask(1)
+	z_index = original_z_index
+
+	emit_signal(\"health_changed\", current_health)
+	emit_signal(\"player_respawned\")
+
+# ---------- physics ----------
+func _physics_process(delta: float) -> void:
+	if is_dead and current_state == State.DEATH:
+		velocity.y += DEATH_GRAVITY * delta
+		move_and_slide()
+		if global_position.y > get_viewport_rect().size.y + 200:
+			_get_respawned()
+		return
+
+	_update_timers(delta)
+	_handle_p_meter_logic(delta)
+
+	if not is_dead and current_health < MAX_HEALTH and invincible_timer <= 0 and is_on_floor():
+		current_health += delta * 0.5
+		current_health = min(current_health, MAX_HEALTH)
+		emit_signal(\"health_changed\", int(current_health))
+
+	if is_on_wall():
+		wall_grace_timer = 0.1
+		last_wall_normal = get_wall_normal()
+	else:
+		wall_grace_timer -= delta
+
+	if not is_on_floor() and current_state not in [State.GP_STALL, State.GP_FALL, State.WALL]:
+		var g = GRAVITY
+		if velocity.y < 0:
+			g = GRAVITY * (0.7 if Input.is_action_pressed(\"jump\") else 1.6)
+		else:
+			g = GRAVITY * 1.3
+		var target_fall = MAX_FALL if velocity.y > 200 else 600
+		velocity.y = move_toward(velocity.y, target_fall, g * delta)
+
+	# state machine
+	match current_state:
+		State.GROUND:   _state_ground(delta)
+		State.AIR:	    _state_air(delta)
+		State.SKID:	    _state_skid(delta)
+		State.ROLL:	    _state_roll(delta)
+		State.DIVE:	    _state_dive(delta)
+		State.WALL:	    _state_wall(delta)
+		State.GP_STALL: _state_gp_stall(delta)
+		State.GP_FALL:  _state_gp_fall(delta)
+		State.SPIN:     _state_spin(delta)
+		State.CROUCH:   _state_crouch(delta)
+		State.BONK:     _state_bonk(delta)
+
+	velocity.x = clamp(velocity.x, -SPEED_LIMIT, SPEED_LIMIT)
+
+	if is_on_floor() and velocity.y >= 0:
+		apply_floor_snap()
+
+	move_and_slide()
+	_handle_landings()
+	_animate(delta)
+
+# ---------- states ----------
+
+func _state_ground(delta: float) -> void:
+	var move := Input.get_axis(\"left\", \"right\")
+
+	if Input.is_action_pressed(\"down\"):
+		_change_state(State.CROUCH); return
+
+	velocity.x += get_floor_normal().x * 20.0 * delta * 60.0 
+
+	var target_speed = P_SPEED if p_meter >= 0.5 else (RUN_SPEED if Input.is_action_pressed(\"run\") else WALK_SPEED)
+
+	if move != 0:
+		if sign(move) != sign(velocity.x) and abs(velocity.x) > 180:
+			_change_state(State.SKID); return
+		facing = sign(move)
+		if abs(velocity.x) <= target_speed:
+			velocity.x = move_toward(velocity.x, move * target_speed, ACCEL * delta)
+	else:
+		velocity.x = move_toward(velocity.x, 0, FRICTION * delta)
+
+	# roll only from dive button
+	if Input.is_action_just_pressed(\"dive\"):
+		_change_state(State.ROLL)
+
+	elif jump_buffer_timer > 0:
+		_perform_jump(false)
+
+func _state_air(delta: float) -> void:
+	var move := Input.get_axis(\"left\", \"right\")
+
+	if wall_grace_timer > 0 and velocity.y > 80 and wall_jump_lockout <= 0:
+		var norm = last_wall_normal
+		if (move < 0 and norm.x > 0) or (move > 0 and norm.x < 0):
+			_change_state(State.WALL)
+			return
+
+	if wall_jump_lockout <= 0:
+		var air_limit = P_SPEED if p_meter >= 0.5 else RUN_SPEED
+		if abs(velocity.x) <= air_limit:
+			velocity.x = move_toward(velocity.x, move * air_limit, AIR_ACCEL * delta)
+
+	if Input.is_action_just_pressed(\"spin_jump\"):
+		_change_state(State.SPIN)
+	elif Input.is_action_just_pressed(\"dive\"):
+		_change_state(State.DIVE)
+	elif Input.is_action_just_pressed(\"down\"):
+		_change_state(State.GP_STALL)
+
+	if jump_buffer_timer > 0 and (is_on_floor() or coyote_timer > 0):
+		_perform_jump(Input.is_action_pressed(\"spin_jump\"))
+
+func _state_dive(delta: float) -> void:
+	velocity.x = move_toward(velocity.x, facing * P_SPEED, 150 * delta)
+	if is_on_wall(): _change_state(State.WALL)
+	if is_on_floor(): 
+		_change_state(State.ROLL if (Input.is_action_pressed(\"down\") or Input.is_action_pressed(\"dive\")) else State.GROUND)
+
+# roll (sm64 + odyssey hybrid)
+func _state_roll(delta: float) -> void:
+	var target_speed = facing * max(ROLL_SPEED, abs(velocity.x))
+	velocity.x = move_toward(velocity.x, target_speed, 2500 * delta)
+
+	if is_on_floor():
+		var slope = get_floor_normal().x
+		velocity.x += slope * 900 * delta
+
+	if not is_on_floor():
+		velocity.y = move_toward(velocity.y, MAX_FALL, GRAVITY * delta)
+
+	if jump_buffer_timer > 0:
+		velocity.y = JUMP_VELOCITY * 0.9
+		velocity.x *= 1.15
+		_change_state(State.AIR)
+		jump_buffer_timer = 0
+		return
+
+	if Input.is_action_just_pressed(\"dive\"):
+		velocity.x *= 1.2
+
+	if abs(velocity.x) < 120:
+		_change_state(State.GROUND)
+
+func _state_wall(delta: float) -> void:
+	var move := Input.get_axis(\"left\", \"right\")
+	var norm = last_wall_normal
+	var pushing = (move < 0 and norm.x > 0) or (move > 0 and norm.x < 0)
+
+	velocity.y = WALL_SLIDE_SPEED if pushing else WALL_SLIDE_SPEED * 1.8
+	velocity.x = -norm.x * 30
+
+	if Input.is_action_just_pressed(\"jump\"):
+		velocity = Vector2(norm.x * WALL_JUMP_PUSH.x, WALL_JUMP_PUSH.y)
+		facing = sign(velocity.x)
+		wall_jump_lockout = 0.2
+		_change_state(State.AIR)
+		return
+
+	if is_on_floor() or wall_grace_timer <= 0:
+		_change_state(State.AIR)
+
+func _state_skid(delta: float) -> void:
+	velocity.x = move_toward(velocity.x, 0, SKID_FRICTION * delta)
+	if abs(velocity.x) < 40:
+		_change_state(State.GROUND)
+
+func _state_crouch(delta: float) -> void:
+	velocity.x = move_toward(velocity.x, 0, FRICTION * delta)
+	if not Input.is_action_pressed(\"down\"):
+		_change_state(State.GROUND)
+
+func _state_gp_stall(_d: float) -> void:
+	velocity = Vector2.ZERO
+	if state_timer <= 0:
+		_change_state(State.GP_FALL)
+
+func _state_gp_fall(delta: float) -> void:
+	velocity.y = move_toward(velocity.y, 1800, GRAVITY * 8 * delta)
+	if is_on_floor():
+		_change_state(State.GROUND)
+
+func _state_spin(_d: float) -> void:
+	if state_timer <= 0:
+		_change_state(State.AIR)
+
+func _state_bonk(delta: float) -> void:
+	# slow horizontal movement gradually
+	velocity.x = move_toward(velocity.x, 0, FRICTION * 0.6 * delta)
+
+	# slight air control (feels much better)
+	var move := Input.get_axis(\"left\", \"right\")
+	velocity.x = move_toward(velocity.x, move * RUN_SPEED, AIR_ACCEL * 0.3 * delta)
+
+	# recover once grounded
+	if is_on_floor() and abs(velocity.x) < 40:
+		_change_state(State.GROUND)
+
+# ---------- helpers ----------
+
+func _handle_p_meter_logic(delta: float) -> void:
+	var current_speed = abs(velocity.x)
+	if is_on_floor() and current_speed >= RUN_SPEED - 20 and Input.is_action_pressed(\"run\"):
+		var rate = 1.0 if current_speed < P_SPEED - 50 else 4.0
+		p_meter = move_toward(p_meter, 2.0, delta * rate)
+	else:
+		p_meter = move_toward(p_meter, 0, delta * 2.0)
+
+func _perform_jump(spin: bool) -> void:
+	velocity.y = (JUMP_VELOCITY if not spin else -620.0)
+	_change_state(State.AIR if not spin else State.SPIN)
+	jump_buffer_timer = 0
+	coyote_timer = 0
+	triple_jump_timer = 0
+
+func _handle_landings() -> void:
+	if is_on_floor() and velocity.y >= 0 and current_state not in [State.ROLL]:
+		sprite.rotation = 0
+		is_side_flipping = false
+		if current_state in [State.AIR, State.GP_FALL, State.SPIN, State.DIVE]:
+			triple_jump_timer = 0.16
+			_change_state(State.GROUND)
+
+func _change_state(new_state: State) -> void:
+	if current_state == new_state:
+		return
+
+	current_state = new_state
+	state_timer = 0.12
+
+	match new_state:
+		State.SPIN:
+			velocity.y = -380.0
+
+		State.DIVE:
+			velocity.x = clamp(velocity.x + (facing * DIVE_BOOST), -SPEED_LIMIT, SPEED_LIMIT)
+			velocity.y = -300.0
+
+		State.ROLL:
+			velocity.x = facing * max(abs(velocity.x), 400)
+
+		State.BONK:
+			velocity = Vector2(-facing * 220, -350)
+
+func _update_timers(delta: float) -> void:
+	triple_jump_timer -= delta
+	wall_jump_lockout -= delta
+	state_timer -= delta
+	jump_buffer_timer = 0.12 if Input.is_action_just_pressed(\"jump\") else jump_buffer_timer - delta
+	coyote_timer = 0.12 if is_on_floor() else coyote_timer - delta
+	invincible_timer = max(invincible_timer - delta, 0)
+	if is_dead:
+		# apply death gravity
+		velocity.y += DEATH_GRAVITY * delta
+	
+		move_and_slide()
+	
+	return
+
+
+func _animate(delta: float) -> void:
+	var is_p = p_meter >= 0.5
+	sprite.flip_h = (facing == -1)
+
+	# Spin speeds (degrees per second) per state
+	var spin_speeds = {
+		State.ROLL: 2360,       # roll spins
+		State.SPIN: 2360,       # spin jump spins
+		State.GP_STALL: 2360    # ground pound stall spins
+	}
+
+	# Apply rotation if in spin state, else reset
+	if current_state in spin_speeds:
+		sprite.rotation += facing * deg_to_rad(spin_speeds[current_state]) * delta
+	else:
+		sprite.rotation = 0
+
+	# Play animations
+	match current_state:
+		State.GROUND:
+			if abs(velocity.x) < 20:
+				sprite.play(\"idle\")
+			elif abs(velocity.x) > 220:
+				sprite.play(\"p-speed run\" if is_p else \"run\")
+			else:
+				sprite.play(\"walk\")
+		State.AIR:
+			sprite.play(\"jump\" if velocity.y < 0 else \"fall\")
+		State.ROLL:
+			sprite.play(\"roll\")
+		State.DIVE:
+			sprite.play(\"dive\")
+		State.SPIN:
+			sprite.play(\"spin_jump\")
+		State.CROUCH:
+			sprite.play(\"crouch\")
+		State.WALL:
+			sprite.play(\"wall_slide\")
+		State.GP_STALL:
+			sprite.play(\"gp_stall\")
+		State.GP_FALL:
+			sprite.play(\"gp_fall\")
+		State.BONK:
+			sprite.play(\"bonk\")
+		State.DEATH:
+			sprite.play(\"die\")
+"
+
+[sub_resource type="GDScript" id="GDScript_4flbx"]
+script/source = "extends Camera2D
+
+@export_group(\"Horizontal - Sonic CD Style\")
+@export var LOOK_AHEAD_DISTANCE := 140.0
+@export var LOOK_AHEAD_SPEED := 2.5
+@export var MIN_SPEED_TO_LEAD := 100.0
+
+@export_group(\"Vertical - SMW Style\")
+@export var VERT_SMOOTH_SPEED := 4.0
+@export var VERT_DEADZONE := 40.0 # Camera won't move if player stays within this Y range
+
+@onready var player: CharacterBody2D = get_parent()
+var target_offset_x := 0.0
+var target_y := 0.0
+var frozen := false # freeze camera on death
+
+func _ready() -> void:
+	top_level = true # detach from player movement
+	global_position = player.global_position
+	target_y = player.global_position.y
+
+	# connect to player death/respawn signals
+	player.connect(\"player_died\", Callable(self, \"_on_player_died\"))
+	player.connect(\"player_respawned\", Callable(self, \"_on_player_respawned\"))
+
+func _on_player_died() -> void:
+	# freeze camera
+	frozen = true
+
+func _on_player_respawned() -> void:
+	# unfreeze camera
+	frozen = false
+
+func _process(delta: float) -> void:
+	if frozen:
+		return # do not move camera while frozen
+
+	# HORIZONTAL (SONIC CD)
+	if abs(player.velocity.x) > MIN_SPEED_TO_LEAD:
+		target_offset_x = lerp(target_offset_x, player.facing * LOOK_AHEAD_DISTANCE, LOOK_AHEAD_SPEED * delta)
+	else:
+		target_offset_x = lerp(target_offset_x, 0.0, LOOK_AHEAD_SPEED * 0.5 * delta)
+
+	# VERTICAL (SMW)
+	var vertical_diff = player.global_position.y - target_y
+	if abs(vertical_diff) > VERT_DEADZONE:
+		target_y = player.global_position.y - (sign(vertical_diff) * VERT_DEADZONE)
+
+	var final_y = lerp(global_position.y, target_y, VERT_SMOOTH_SPEED * delta)
+
+	# APPLY FINAL CAMERA POSITION
+	global_position = Vector2(
+		player.global_position.x + target_offset_x,
+		final_y
+	)
+"
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_4flbx"]
+radius = 4.0
+height = 16.0
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7hik5"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(64, 160, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dx0e4"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(96, 224, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jm5j8"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(224, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sweqy"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(96, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4flbx"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(32, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bwjto"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(64, 160, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dw050"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(96, 224, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qtqh7"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(128, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_onrkg"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_i3pqv"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(0, 128, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_606se"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(96, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_u1c27"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(0, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_q13i1"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(32, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pylmc"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(64, 192, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7lmhl"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(64, 224, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_n7ghd"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nvl01"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ivps1"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(64, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_op7ga"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(0, 160, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hqtel"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(0, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2hs0m"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(64, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1jxqw"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(160, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_b26j0"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(96, 352, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pbfsw"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5tmop"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7ahtn"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(64, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_urp6f"]
+atlas = ExtResource("1_4flbx")
+region = Rect2(32, 384, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_n7ghd"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7hik5")
+}],
+"loop": true,
+"name": &"bonk",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dx0e4")
+}],
+"loop": true,
+"name": &"crouch",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jm5j8")
+}],
+"loop": true,
+"name": &"die",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sweqy")
+}],
+"loop": true,
+"name": &"dive",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4flbx")
+}],
+"loop": true,
+"name": &"fall",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bwjto")
+}],
+"loop": true,
+"name": &"gp_fall",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dw050")
+}],
+"loop": true,
+"name": &"gp_stall",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qtqh7")
+}],
+"loop": true,
+"name": &"hurt",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_onrkg")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_i3pqv")
+}],
+"loop": false,
+"name": &"jump",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_606se")
+}],
+"loop": true,
+"name": &"p-speed jump",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_u1c27")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_q13i1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pylmc")
+}],
+"loop": true,
+"name": &"p-speed run",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7lmhl")
+}],
+"loop": true,
+"name": &"roll",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_n7ghd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nvl01")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ivps1")
+}],
+"loop": true,
+"name": &"run",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_op7ga")
+}],
+"loop": true,
+"name": &"skid",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hqtel")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2hs0m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1jxqw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_b26j0")
+}],
+"loop": true,
+"name": &"spin_jump",
+"speed": 15.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pbfsw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5tmop")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7ahtn")
+}],
+"loop": true,
+"name": &"walk",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_urp6f")
+}],
+"loop": true,
+"name": &"wall_slide",
+"speed": 5.0
+}]
+
+[node name="CharacterBody2D" type="CharacterBody2D" unique_id=1007483482]
+floor_stop_on_slope = false
+floor_constant_speed = true
+floor_snap_length = 8.0
+script = SubResource("GDScript_sh265")
+GRAVITY = 2000.0
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1199008200]
+ignore_rotation = false
+zoom = Vector2(1.5, 1.5)
+limit_enabled = false
+editor_draw_limits = true
+editor_draw_drag_margin = true
+script = SubResource("GDScript_4flbx")
+
+[node name="wall_check_left" type="RayCast2D" parent="." unique_id=1355714117]
+position = Vector2(0, 8)
+target_position = Vector2(6, 0)
+
+[node name="wall_check_right" type="RayCast2D" parent="." unique_id=1462866070]
+position = Vector2(0, 8)
+target_position = Vector2(-6, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1978322562]
+position = Vector2(0, 8)
+shape = SubResource("CapsuleShape2D_4flbx")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=2078175759]
+texture_filter = 1
+position = Vector2(0, 6.0000005)
+scale = Vector2(0.62000597, 0.620006)
+sprite_frames = SubResource("SpriteFrames_n7ghd")
+animation = &"idle"
+autoplay = "idle"
+
+[node name="Ceiling_R" type="RayCast2D" parent="." unique_id=2089809039]
+position = Vector2(4, -1)
+target_position = Vector2(0, -3)
+
+[node name="Ceiling_L" type="RayCast2D" parent="." unique_id=1611454597]
+position = Vector2(-4, -1)
+target_position = Vector2(0, -3)
+
+[node name="SlopecastR" type="RayCast2D" parent="." unique_id=1113687396]
+position = Vector2(4, -1)
+target_position = Vector2(0, 18)
+
+[node name="SlopecastL" type="RayCast2D" parent="." unique_id=1144106909]
+position = Vector2(-4, -1)
+target_position = Vector2(0, 18)

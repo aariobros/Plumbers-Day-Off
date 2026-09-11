@@ -1,0 +1,84 @@
+[gd_scene format=3 uid="uid://bth36b43q3u1r"]
+
+[ext_resource type="Script" uid="uid://bil1p8p2uufom" path="res://hud.gd" id="1_k5de2"]
+[ext_resource type="Texture2D" uid="uid://di4aeuxhsov8n" path="res://assets/MISC/pixil-frame-0 (1).png" id="2_efote"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_efote"]
+atlas = ExtResource("2_efote")
+region = Rect2(380, 66, 47, 45)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vow1y"]
+atlas = ExtResource("2_efote")
+region = Rect2(333, 66, 47, 45)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ne771"]
+atlas = ExtResource("2_efote")
+region = Rect2(286, 66, 47, 45)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xxqia"]
+atlas = ExtResource("2_efote")
+region = Rect2(239, 66, 47, 45)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gv1iq"]
+atlas = ExtResource("2_efote")
+region = Rect2(192, 66, 47, 45)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1and6"]
+atlas = ExtResource("2_efote")
+region = Rect2(145, 66, 47, 45)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w75gc"]
+atlas = ExtResource("2_efote")
+region = Rect2(98, 66, 47, 45)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_n0ylh"]
+atlas = ExtResource("2_efote")
+region = Rect2(51, 66, 47, 45)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gbfpv"]
+atlas = ExtResource("2_efote")
+region = Rect2(4, 66, 47, 45)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_2afx3"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_efote")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vow1y")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ne771")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xxqia")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gv1iq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1and6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w75gc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_n0ylh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gbfpv")
+}],
+"loop": true,
+"name": &"healthbar",
+"speed": 5.0
+}]
+
+[node name="CanvasLayer" type="CanvasLayer" unique_id=1694541669]
+script = ExtResource("1_k5de2")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=932565717]
+texture_filter = 1
+sprite_frames = SubResource("SpriteFrames_2afx3")
+animation = &"healthbar"
+frame_progress = 0.07905436

@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://ct1odkdnx5bvp"]
+
+[ext_resource type="Script" uid="uid://mfroie5lir0p" path="res://platform.gd" id="1_mi635"]
+[ext_resource type="Texture2D" uid="uid://di5a1pv5iuup3" path="res://icon.png" id="2_s8bxr"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_mi635"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_s8bxr"]
+size = Vector2(98, 20)
+
+[node name="Node2D" type="Node2D" unique_id=1303247507]
+script = ExtResource("1_mi635")
+
+[node name="AnimatableBody2D" type="AnimatableBody2D" parent="." unique_id=789331454]
+physics_material_override = SubResource("PhysicsMaterial_mi635")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AnimatableBody2D" unique_id=2069425313]
+shape = SubResource("RectangleShape2D_s8bxr")
+
+[node name="Sprite2D" type="Sprite2D" parent="AnimatableBody2D" unique_id=1328204210]
+position = Vector2(-1.0000024, 0.49999928)
+scale = Vector2(1.5312499, 0.328125)
+texture = ExtResource("2_s8bxr")
