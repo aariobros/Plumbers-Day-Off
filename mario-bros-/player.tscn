@@ -75,6 +75,9 @@ var dive_dir : Vector2
 
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var wall_check_left: RayCast2D = $wall_check_left
+@onready var wall_check_right: RayCast2D = $wall_check_right
+
 
 # ---------- ready ----------
 func _ready():
@@ -240,10 +243,11 @@ func _state_ground(delta: float) -> void:
 
 func _state_air(delta: float) -> void:
 	var move := Input.get_axis(\"left\", \"right\")
+	var wall_touchin :=  (int(wall_check_left.is_colliding())) + (int(wall_check_right.is_colliding())*-1)
 
 	if wall_grace_timer > 0 and velocity.y > 80 and wall_jump_lockout <= 0:
 		var norm = last_wall_normal
-		if (move < 0 and norm.x > 0) or (move > 0 and norm.x < 0):
+		if (wall_touchin < 0 and norm.x > 0) or (wall_touchin > 0 and norm.x < 0):
 			_change_state(State.WALL)
 			return
 
@@ -315,7 +319,7 @@ func _state_roll(delta: float) -> void:
 		_change_state(State.GROUND)
 
 func _state_wall(delta: float) -> void:
-	var move := Input.get_axis(\"left\", \"right\")
+	var move := (int(wall_check_left.is_colliding())*-1) + int(wall_check_right.is_colliding())
 	var norm = last_wall_normal
 	var pushing = (move < 0 and norm.x > 0) or (move > 0 and norm.x < 0)
 
@@ -843,6 +847,7 @@ editor_draw_drag_margin = true
 script = SubResource("GDScript_4flbx")
 
 [node name="wall_check_left" type="RayCast2D" parent="." unique_id=1355714117]
+visible = false
 position = Vector2(0, 8)
 target_position = Vector2(6, 0)
 
