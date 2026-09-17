@@ -38,8 +38,12 @@ var is_dead := false
 @export var WALL_JUMP_PUSH := Vector2(340, -780)
 
 @export_group(\"Moves\")
+@export var ROLL_SPEED := 700.0   
+@export_subgroup(\"dive\")
 @export var DIVE_BOOST := 300.0     
-@export var ROLL_SPEED := 700.0     
+@export var Dive_buffer_time := 1 
+@export var Dive_buffer_tick_rate := 1 
+
 
 @export_group(\"Damage\")
 @export var KNOCKBACK_FORCE := 260.0
@@ -65,6 +69,10 @@ var wall_jump_lockout := 0.0
 var is_side_flipping := false
 var wall_grace_timer := 0.0
 var last_wall_normal := Vector2.ZERO
+
+var dive_buffer_timer := Dive_buffer_time
+var dive_dir : Vector2
+
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 
@@ -255,15 +263,36 @@ func _state_air(delta: float) -> void:
 		_perform_jump(Input.is_action_pressed(\"spin_jump\"))
 
 func _state_dive(delta: float) -> void:
-	velocity.x = move_toward(velocity.x, facing * P_SPEED, 150 * delta)
-	if is_on_wall(): _change_state(State.WALL)
-	if is_on_floor(): 
-		_change_state(State.ROLL if (Input.is_action_pressed(\"down\") or Input.is_action_pressed(\"dive\")) else State.GROUND)
+	if dive_buffer_timer >= 0:
+		velocity = Vector2(move_toward(velocity.x,0, 2),move_toward(velocity.y,0, 2) )
+		dive_dir =  Vector2(sign(Input.get_axis(\"left\", \"right\")) ,  sign(Input.get_axis(\"up\", \"down\"))*1.5)
+		dive_buffer_timer -= Dive_buffer_tick_rate
+		#print(dive_dir)
+	else:
+		if dive_dir == Vector2.ZERO:
+			dive_dir.x = facing
+		if sign(velocity.x) == dive_dir.x:
+			velocity.x += dive_dir.x *SPEED_LIMIT
+			print(velocity.x)
+		else:
+			velocity.x = dive_dir.x * SPEED_LIMIT
+		if sign(velocity.y) == dive_dir.y:
+			velocity.y += dive_dir.y * P_SPEED
+		else:
+			velocity.y = dive_dir.y * P_SPEED
+		velocity = P_SPEED * dive_dir
+		dive_buffer_timer = Dive_buffer_time
+		if is_on_wall(): _change_state(State.WALL)
+		elif is_on_floor(): 
+			_change_state(State.ROLL if (Input.is_action_pressed(\"down\") or Input.is_action_pressed(\"dive\")) else State.GROUND)
+		else:
+			_change_state(State.AIR)
 
 # roll (sm64 + odyssey hybrid)
 func _state_roll(delta: float) -> void:
 	var target_speed = facing * max(ROLL_SPEED, abs(velocity.x))
 	velocity.x = move_toward(velocity.x, target_speed, 2500 * delta)
+	print(velocity.x)
 
 	if is_on_floor():
 		var slope = get_floor_normal().x
@@ -376,8 +405,10 @@ func _change_state(new_state: State) -> void:
 			velocity.y = -380.0
 
 		State.DIVE:
-			velocity.x = clamp(velocity.x + (facing * DIVE_BOOST), -SPEED_LIMIT, SPEED_LIMIT)
-			velocity.y = -300.0
+			pass
+			#velocity += dive_dir * P_SPEED
+			
+			
 
 		State.ROLL:
 			velocity.x = facing * max(abs(velocity.x), 400)
@@ -794,11 +825,14 @@ animations = [{
 }]
 
 [node name="CharacterBody2D" type="CharacterBody2D" unique_id=1007483482]
+slide_on_ceiling = false
 floor_stop_on_slope = false
 floor_constant_speed = true
+floor_block_on_wall = false
 floor_snap_length = 8.0
 script = SubResource("GDScript_sh265")
 GRAVITY = 2000.0
+Dive_buffer_time = 5
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1199008200]
 ignore_rotation = false
