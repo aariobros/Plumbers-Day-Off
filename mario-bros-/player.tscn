@@ -34,15 +34,19 @@ var is_dead := false
 @export var JUMP_VELOCITY := -680.0
 @export var GRAVITY := 2400.0
 @export var MAX_FALL := 1200.0
+@export_subgroup(\"wall jump-slide\")
 @export var WALL_SLIDE_SPEED := 170.0 
+@export var WALL_SLIDE_accel := 1
 @export var WALL_JUMP_PUSH := Vector2(340, -780)
+
 
 @export_group(\"Moves\")
 @export var ROLL_SPEED := 700.0   
 @export_subgroup(\"dive\")
 @export var DIVE_BOOST := 300.0     
-@export var Dive_buffer_time := 1 
+@export var Dive_buffer_time := 5 
 @export var Dive_buffer_tick_rate := 1 
+@export var Dive_duration_time := 1
 
 
 @export_group(\"Damage\")
@@ -72,6 +76,7 @@ var last_wall_normal := Vector2.ZERO
 
 var dive_buffer_timer := Dive_buffer_time
 var dive_dir : Vector2
+var dive_duration_timer := Dive_duration_time
 
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
@@ -150,6 +155,7 @@ func _get_respawned() -> void:
 	global_position = checkpoint_position
 	velocity = Vector2.ZERO
 	_change_state(State.GROUND)
+	print(\"ground2\")
 
 	set_collision_layer(1)
 	set_collision_mask(1)
@@ -216,6 +222,7 @@ func _physics_process(delta: float) -> void:
 # ---------- states ----------
 
 func _state_ground(delta: float) -> void:
+	#print(\"grounded\")
 	var move := Input.get_axis(\"left\", \"right\")
 
 	if Input.is_action_pressed(\"down\"):
@@ -245,9 +252,11 @@ func _state_air(delta: float) -> void:
 	var move := Input.get_axis(\"left\", \"right\")
 	var wall_touchin :=  (int(wall_check_left.is_colliding())) + (int(wall_check_right.is_colliding())*-1)
 
-	if wall_grace_timer > 0 and velocity.y > 80 and wall_jump_lockout <= 0:
+	if wall_grace_timer > 0  and wall_jump_lockout <= 0:
 		var norm = last_wall_normal
-		if (wall_touchin < 0 and norm.x > 0) or (wall_touchin > 0 and norm.x < 0):
+		
+		if (last_wall_normal.x < 0 ) or (last_wall_normal.x > 0):
+		
 			_change_state(State.WALL)
 			return
 
@@ -260,8 +269,8 @@ func _state_air(delta: float) -> void:
 		_change_state(State.SPIN)
 	elif Input.is_action_just_pressed(\"dive\"):
 		_change_state(State.DIVE)
-	elif Input.is_action_just_pressed(\"down\"):
-		_change_state(State.GP_STALL)
+	#elif Input.is_action_just_pressed(\"down\"):
+		#_change_state(State.GP_STALL)
 
 	if jump_buffer_timer > 0 and (is_on_floor() or coyote_timer > 0):
 		_perform_jump(Input.is_action_pressed(\"spin_jump\"))
@@ -269,8 +278,8 @@ func _state_air(delta: float) -> void:
 func _state_dive(delta: float) -> void:
 	if dive_buffer_timer >= 0:
 		velocity = Vector2(move_toward(velocity.x,0, 2),move_toward(velocity.y,0, 2) )
-		dive_dir =  Vector2(sign(Input.get_axis(\"left\", \"right\")) ,  sign(Input.get_axis(\"up\", \"down\"))*1.5)
-		dive_buffer_timer -= Dive_buffer_tick_rate
+		dive_dir =  Vector2(sign(Input.get_axis(\"left\", \"right\")) ,  sign(Input.get_axis(\"up\", \"down\")))
+		dive_buffer_timer -= 1
 		#print(dive_dir)
 	else:
 		if dive_dir == Vector2.ZERO:
@@ -280,17 +289,35 @@ func _state_dive(delta: float) -> void:
 			print(velocity.x)
 		else:
 			velocity.x = dive_dir.x * SPEED_LIMIT
+			
 		if sign(velocity.y) == dive_dir.y:
 			velocity.y += dive_dir.y * P_SPEED
+			
 		else:
 			velocity.y = dive_dir.y * P_SPEED
+			#print(velocity.y)
 		velocity = P_SPEED * dive_dir
-		dive_buffer_timer = Dive_buffer_time
-		if is_on_wall(): _change_state(State.WALL)
-		elif is_on_floor(): 
-			_change_state(State.ROLL if (Input.is_action_pressed(\"down\") or Input.is_action_pressed(\"dive\")) else State.GROUND)
-		else:
-			_change_state(State.AIR)
+		
+		if is_on_wall():
+			print(\"something\")
+			_change_state(State.WALL)
+		if is_on_floor():
+			print(\"ground1\")
+			if abs(get_floor_normal().x) > 0: 
+				
+				_change_state(State.ROLL)
+				facing = sign(get_floor_normal().x) 
+			else: 
+				_change_state(State.GROUND)
+		
+			
+		if dive_duration_timer >= 0:
+			dive_duration_timer -= 1
+			return
+		
+		print(\"air\")
+		_change_state(State.AIR)
+		
 
 # roll (sm64 + odyssey hybrid)
 func _state_roll(delta: float) -> void:
@@ -316,34 +343,40 @@ func _state_roll(delta: float) -> void:
 		velocity.x *= 1.2
 
 	if abs(velocity.x) < 120:
+		print(\"ground3\")
 		_change_state(State.GROUND)
 
 func _state_wall(delta: float) -> void:
-	var move := (int(wall_check_left.is_colliding())*-1) + int(wall_check_right.is_colliding())
+	var wall_dir := (int(wall_check_left.is_colliding())) + (int(wall_check_right.is_colliding())*-1)
+	var move := Input.get_axis(\"left\",\"right\")
 	var norm = last_wall_normal
-	var pushing = (move < 0 and norm.x > 0) or (move > 0 and norm.x < 0)
+	var pushing = (wall_dir < 0 ) or (wall_dir > 0 )
 
-	velocity.y = WALL_SLIDE_SPEED if pushing else WALL_SLIDE_SPEED * 1.8
+	velocity.y = move_toward(velocity.y ,WALL_SLIDE_SPEED, WALL_SLIDE_accel ) 
 	velocity.x = -norm.x * 30
 
-	if Input.is_action_just_pressed(\"jump\"):
+	if jump_buffer_timer > 0:
 		velocity = Vector2(norm.x * WALL_JUMP_PUSH.x, WALL_JUMP_PUSH.y)
 		facing = sign(velocity.x)
 		wall_jump_lockout = 0.2
 		_change_state(State.AIR)
 		return
 
-	if is_on_floor() or wall_grace_timer <= 0:
+	if is_on_floor() or wall_grace_timer <= 0 or move + wall_dir == 0:
 		_change_state(State.AIR)
+		facing = move
+		velocity.x = WALK_SPEED * move
 
 func _state_skid(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, 0, SKID_FRICTION * delta)
 	if abs(velocity.x) < 40:
+		print(\"ground4\")
 		_change_state(State.GROUND)
 
 func _state_crouch(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, 0, FRICTION * delta)
 	if not Input.is_action_pressed(\"down\"):
+		print(\"ground5\")
 		_change_state(State.GROUND)
 
 func _state_gp_stall(_d: float) -> void:
@@ -354,6 +387,7 @@ func _state_gp_stall(_d: float) -> void:
 func _state_gp_fall(delta: float) -> void:
 	velocity.y = move_toward(velocity.y, 1800, GRAVITY * 8 * delta)
 	if is_on_floor():
+		print(\"ground6\")
 		_change_state(State.GROUND)
 
 func _state_spin(_d: float) -> void:
@@ -370,6 +404,7 @@ func _state_bonk(delta: float) -> void:
 
 	# recover once grounded
 	if is_on_floor() and abs(velocity.x) < 40:
+		print(\"ground7\")
 		_change_state(State.GROUND)
 
 # ---------- helpers ----------
@@ -395,7 +430,23 @@ func _handle_landings() -> void:
 		is_side_flipping = false
 		if current_state in [State.AIR, State.GP_FALL, State.SPIN, State.DIVE]:
 			triple_jump_timer = 0.16
-			_change_state(State.GROUND)
+			print(\"ground8\")
+			if current_state == State.DIVE and dive_dir.y > 0 and abs(get_floor_normal().x) > 0:
+				
+				facing = sign(get_floor_normal().x) 
+				_change_state(State.ROLL)
+			else:
+				#print(State.keys()[current_state])
+				if jump_buffer_timer > 0:
+					velocity.y = JUMP_VELOCITY * 0.9
+					velocity.x *= 1.15
+					_change_state(State.AIR)
+					jump_buffer_timer = 0
+					print(\"yes\")
+					return
+				else:
+					print(\"no\")
+					_change_state(State.GROUND)
 
 func _change_state(new_state: State) -> void:
 	if current_state == new_state:
@@ -409,7 +460,8 @@ func _change_state(new_state: State) -> void:
 			velocity.y = -380.0
 
 		State.DIVE:
-			pass
+			dive_duration_timer = Dive_duration_time
+			dive_buffer_timer = Dive_buffer_time
 			#velocity += dive_dir * P_SPEED
 			
 			
@@ -836,7 +888,8 @@ floor_block_on_wall = false
 floor_snap_length = 8.0
 script = SubResource("GDScript_sh265")
 GRAVITY = 2000.0
-Dive_buffer_time = 5
+WALL_SLIDE_accel = 20
+Dive_duration_time = 8
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1199008200]
 ignore_rotation = false
