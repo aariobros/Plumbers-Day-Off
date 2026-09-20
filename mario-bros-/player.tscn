@@ -431,15 +431,13 @@ func _handle_landings() -> void:
 		if current_state in [State.AIR, State.GP_FALL, State.SPIN, State.DIVE]:
 			triple_jump_timer = 0.16
 			print(\"ground8\")
-			if current_state == State.DIVE and dive_dir.y > 0 and abs(get_floor_normal().x) > 0:
-				
-				facing = sign(get_floor_normal().x) 
-				_change_state(State.ROLL)
-			else:
-				#print(State.keys()[current_state])
-				if jump_buffer_timer > 0:
+			if current_state == State.DIVE:
+				if dive_dir.y > 0 and abs(get_floor_normal().x) > 0:
+					facing = sign(get_floor_normal().x) 
+					_change_state(State.ROLL)
+				elif jump_buffer_timer > 0:
 					velocity.y = JUMP_VELOCITY * 0.9
-					velocity.x *= 1.15
+					velocity.x *= 1.5
 					_change_state(State.AIR)
 					jump_buffer_timer = 0
 					print(\"yes\")
@@ -447,6 +445,10 @@ func _handle_landings() -> void:
 				else:
 					print(\"no\")
 					_change_state(State.GROUND)
+			else:
+				#print(State.keys()[current_state])
+				
+				_change_state(State.GROUND)
 
 func _change_state(new_state: State) -> void:
 	if current_state == new_state:
