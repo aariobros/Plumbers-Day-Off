@@ -5,21 +5,27 @@
 [sub_resource type="GDScript" id="GDScript_sh265"]
 script/source = "extends CharacterBody2D
 
-# ---------- signals ----------
+#region ---------- signals ----------
 signal health_changed(current_health: int)
 signal player_died
 signal player_respawned
 
-# ---------- checkpoints ----------
+#endregion
+
+#region ---------- checkpoints ----------
 var checkpoint_position: Vector2
 
-# ---------- health ----------
+#endregion
+
+#region ---------- health ----------
 @export var MAX_HEALTH := 8
 var current_health := MAX_HEALTH
 var invincible_timer := 0.0
 var is_dead := false
 
-# ---------- movement tuning ----------
+#endregion
+
+#region ---------- movement tuning ----------
 @export_group(\"Horizontal\")
 @export var WALK_SPEED := 180.0
 @export var RUN_SPEED := 340.0
@@ -29,6 +35,7 @@ var is_dead := false
 @export var FRICTION := 850.0
 @export var SKID_FRICTION := 3800.0 
 @export var AIR_ACCEL := 850.0
+
 
 @export_group(\"Vertical\")
 @export var JUMP_VELOCITY := -680.0
@@ -47,7 +54,9 @@ var is_dead := false
 @export var Dive_buffer_time := 5 
 @export var Dive_buffer_tick_rate := 1 
 @export var Dive_duration_time := 1
-
+@export_subgroup(\"backflip\")
+@export var Backflip_vel := 600.0
+@export var Backflip_duration := 10.0
 
 @export_group(\"Damage\")
 @export var KNOCKBACK_FORCE := 260.0
@@ -57,10 +66,14 @@ var is_dead := false
 var original_z_index := 0
 @export var DEATH_Z_INDEX := 1000
 
-# ---------- states ----------
-enum State { GROUND, AIR, SKID, WALL, DIVE, GP_STALL, GP_FALL, ROLL, SPIN, BONK, CROUCH, DEATH }
+#endregion
 
-# ---------- runtime ----------
+#region ---------- states ----------
+enum State { GROUND, AIR, SKID, WALL, DIVE, GP_STALL, GP_FALL, ROLL, SPIN, BONK, CROUCH, DEATH, LEDGE_GRAB, BACKFLIP }
+
+#endregion
+
+#region ---------- runtime ----------
 var current_state := State.GROUND
 var facing := 1
 var p_meter := 0.0 
@@ -73,10 +86,17 @@ var wall_jump_lockout := 0.0
 var is_side_flipping := false
 var wall_grace_timer := 0.0
 var last_wall_normal := Vector2.ZERO
+#endregion
 
+#region dive runtime
 var dive_buffer_timer := Dive_buffer_time
 var dive_dir : Vector2
 var dive_duration_timer := Dive_duration_time
+#endregion
+
+#region backflip
+var backflip_timer := Backflip_duration
+#endregion
 
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
@@ -84,15 +104,29 @@ var dive_duration_timer := Dive_duration_time
 @onready var wall_check_right: RayCast2D = $wall_check_right
 
 
-# ---------- ready ----------
+#region ---------- animation/vfx ---------
+@export_group(\"animations and vfx\")
+@export_subgroup(\"rotations\")
+@export var Roll_rotation := 2360
+@export var Spin_rotation := 2360
+@export var Backflip_rotation := -1000
+
+#endregion
+#region ---------- ready ----------
 func _ready():
 	checkpoint_position = global_position  # default spawn
 
-# ---------- checkpoints ----------
+#endregion
+
+
+#region ---------- checkpoints ----------
 func set_checkpoint(pos: Vector2):
 	checkpoint_position = pos
 
-# ---------- damage ----------
+#endregion
+
+
+#region ---------- damage ----------
 func take_damage(amount: int, source_pos: Vector2 = global_position) -> void:
 	if is_dead or invincible_timer > 0:
 		return
@@ -123,7 +157,9 @@ func take_damage(amount: int, source_pos: Vector2 = global_position) -> void:
 	if current_health <= 0:
 		_die()
 
-# ---------- death ----------
+#endregion
+
+#region ---------- death ----------
 func _die() -> void:
 	if is_dead:
 		return
@@ -148,7 +184,9 @@ func _die() -> void:
 
 	sprite.play(\"die\")
 
-# ---------- respawn ----------
+#endregion
+
+#region ---------- respawn ----------
 func _get_respawned() -> void:
 	is_dead = false
 	current_health = MAX_HEALTH
@@ -164,7 +202,9 @@ func _get_respawned() -> void:
 	emit_signal(\"health_changed\", current_health)
 	emit_signal(\"player_respawned\")
 
-# ---------- physics ----------
+#endregion
+
+#region ---------- physics ----------
 func _physics_process(delta: float) -> void:
 	if is_dead and current_state == State.DEATH:
 		velocity.y += DEATH_GRAVITY * delta
@@ -209,6 +249,7 @@ func _physics_process(delta: float) -> void:
 		State.SPIN:     _state_spin(delta)
 		State.CROUCH:   _state_crouch(delta)
 		State.BONK:     _state_bonk(delta)
+		State.BACKFLIP: _state_backflip(delta); print(\"backflip\")
 
 	velocity.x = clamp(velocity.x, -SPEED_LIMIT, SPEED_LIMIT)
 
@@ -219,7 +260,9 @@ func _physics_process(delta: float) -> void:
 	_handle_landings()
 	_animate(delta)
 
-# ---------- states ----------
+#endregion
+
+#region ---------- states ----------
 
 func _state_ground(delta: float) -> void:
 	#print(\"grounded\")
@@ -284,6 +327,8 @@ func _state_dive(delta: float) -> void:
 	else:
 		if dive_dir == Vector2.ZERO:
 			dive_dir.x = facing
+		if dive_dir.x == 0 or dive_dir.y == 0:
+			dive_dir *= 1.05
 		if sign(velocity.x) == dive_dir.x:
 			velocity.x += dive_dir.x *SPEED_LIMIT
 			print(velocity.x)
@@ -364,7 +409,7 @@ func _state_wall(delta: float) -> void:
 
 	if is_on_floor() or wall_grace_timer <= 0 or move + wall_dir == 0:
 		_change_state(State.AIR)
-		facing = move
+		facing = wall_dir
 		velocity.x = WALK_SPEED * move
 
 func _state_skid(delta: float) -> void:
@@ -378,6 +423,12 @@ func _state_crouch(delta: float) -> void:
 	if not Input.is_action_pressed(\"down\"):
 		print(\"ground5\")
 		_change_state(State.GROUND)
+	if jump_buffer_timer > 0:
+		velocity.y = JUMP_VELOCITY * 1.5
+		
+		_change_state(State.BACKFLIP)
+		jump_buffer_timer = 0
+		print(\"yes\")
 
 func _state_gp_stall(_d: float) -> void:
 	velocity = Vector2.ZERO
@@ -407,7 +458,23 @@ func _state_bonk(delta: float) -> void:
 		print(\"ground7\")
 		_change_state(State.GROUND)
 
-# ---------- helpers ----------
+func _state_backflip(delta: float) -> void:
+	if backflip_timer > 0 and not is_on_wall() and not is_on_floor():
+		velocity.x = Backflip_vel * (facing*-1)
+		backflip_timer -= 1
+	else:
+		backflip_timer = Backflip_duration
+		
+		if is_on_wall():
+			_change_state(State.WALL)
+		elif is_on_floor():
+			_change_state(State.GROUND)
+		else:
+			_change_state(State.AIR)
+
+#endregion
+
+#region ---------- helpers ----------
 
 func _handle_p_meter_logic(delta: float) -> void:
 	var current_speed = abs(velocity.x)
@@ -496,9 +563,10 @@ func _animate(delta: float) -> void:
 
 	# Spin speeds (degrees per second) per state
 	var spin_speeds = {
-		State.ROLL: 2360,       # roll spins
-		State.SPIN: 2360,       # spin jump spins
-		State.GP_STALL: 2360    # ground pound stall spins
+		State.ROLL: Roll_rotation,       # roll spins
+		State.SPIN: Spin_rotation,       # spin jump spins
+		State.GP_STALL: 2360,    # ground pound stall spins
+		State.BACKFLIP : Backflip_rotation 
 	}
 
 	# Apply rotation if in spin state, else reset
@@ -536,6 +604,10 @@ func _animate(delta: float) -> void:
 			sprite.play(\"bonk\")
 		State.DEATH:
 			sprite.play(\"die\")
+		State.BACKFLIP:
+			sprite.play(\"jump\")
+
+#endregion
 "
 
 [sub_resource type="GDScript" id="GDScript_4flbx"]
@@ -714,7 +786,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_7hik5")
 }],
-"loop": true,
+"loop": 1,
 "name": &"bonk",
 "speed": 5.0
 }, {
@@ -722,7 +794,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_dx0e4")
 }],
-"loop": true,
+"loop": 1,
 "name": &"crouch",
 "speed": 5.0
 }, {
@@ -730,7 +802,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_jm5j8")
 }],
-"loop": true,
+"loop": 1,
 "name": &"die",
 "speed": 5.0
 }, {
@@ -738,7 +810,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_sweqy")
 }],
-"loop": true,
+"loop": 1,
 "name": &"dive",
 "speed": 5.0
 }, {
@@ -746,7 +818,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_4flbx")
 }],
-"loop": true,
+"loop": 1,
 "name": &"fall",
 "speed": 5.0
 }, {
@@ -754,7 +826,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_bwjto")
 }],
-"loop": true,
+"loop": 1,
 "name": &"gp_fall",
 "speed": 5.0
 }, {
@@ -762,7 +834,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_dw050")
 }],
-"loop": true,
+"loop": 1,
 "name": &"gp_stall",
 "speed": 5.0
 }, {
@@ -770,7 +842,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_qtqh7")
 }],
-"loop": true,
+"loop": 1,
 "name": &"hurt",
 "speed": 5.0
 }, {
@@ -778,7 +850,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_onrkg")
 }],
-"loop": true,
+"loop": 1,
 "name": &"idle",
 "speed": 5.0
 }, {
@@ -786,7 +858,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_i3pqv")
 }],
-"loop": false,
+"loop": 0,
 "name": &"jump",
 "speed": 5.0
 }, {
@@ -794,7 +866,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_606se")
 }],
-"loop": true,
+"loop": 1,
 "name": &"p-speed jump",
 "speed": 5.0
 }, {
@@ -808,7 +880,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_pylmc")
 }],
-"loop": true,
+"loop": 1,
 "name": &"p-speed run",
 "speed": 5.0
 }, {
@@ -816,7 +888,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_7lmhl")
 }],
-"loop": true,
+"loop": 1,
 "name": &"roll",
 "speed": 5.0
 }, {
@@ -830,7 +902,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_ivps1")
 }],
-"loop": true,
+"loop": 1,
 "name": &"run",
 "speed": 8.0
 }, {
@@ -838,7 +910,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_op7ga")
 }],
-"loop": true,
+"loop": 1,
 "name": &"skid",
 "speed": 5.0
 }, {
@@ -855,7 +927,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_b26j0")
 }],
-"loop": true,
+"loop": 1,
 "name": &"spin_jump",
 "speed": 15.0
 }, {
@@ -869,7 +941,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_7ahtn")
 }],
-"loop": true,
+"loop": 1,
 "name": &"walk",
 "speed": 5.0
 }, {
@@ -877,7 +949,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_urp6f")
 }],
-"loop": true,
+"loop": 1,
 "name": &"wall_slide",
 "speed": 5.0
 }]
