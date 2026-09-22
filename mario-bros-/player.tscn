@@ -54,8 +54,10 @@ var is_dead := false
 @export var Dive_buffer_time := 5 
 @export var Dive_buffer_tick_rate := 1 
 @export var Dive_duration_time := 1
+@export var wall_extension_duration := 5
 @export_subgroup(\"backflip\")
 @export var Backflip_vel := 600.0
+@export var Backflip_height := -720
 @export var Backflip_duration := 10.0
 
 @export_group(\"Damage\")
@@ -92,6 +94,7 @@ var last_wall_normal := Vector2.ZERO
 var dive_buffer_timer := Dive_buffer_time
 var dive_dir : Vector2
 var dive_duration_timer := Dive_duration_time
+var wall_extencion_window := 0
 #endregion
 
 #region backflip
@@ -259,7 +262,9 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_handle_landings()
 	_animate(delta)
-
+	
+	if wall_extencion_window > 0 and current_state != State.DIVE:
+		wall_extencion_window -= 1
 #endregion
 
 #region ---------- states ----------
@@ -319,6 +324,8 @@ func _state_air(delta: float) -> void:
 		_perform_jump(Input.is_action_pressed(\"spin_jump\"))
 
 func _state_dive(delta: float) -> void:
+	var wall_dir := (int(wall_check_left.is_colliding())) + (int(wall_check_right.is_colliding())*-1)
+
 	if dive_buffer_timer >= 0:
 		velocity = Vector2(move_toward(velocity.x,0, 2),move_toward(velocity.y,0, 2) )
 		dive_dir =  Vector2(sign(Input.get_axis(\"left\", \"right\")) ,  sign(Input.get_axis(\"up\", \"down\")))
@@ -329,21 +336,24 @@ func _state_dive(delta: float) -> void:
 			dive_dir.x = facing
 		if dive_dir.x == 0 or dive_dir.y == 0:
 			dive_dir *= 1.05
+			
+			if dive_dir.y < 0:
+				print(\"yes\")
+				wall_extencion_window = wall_extension_duration
 		if sign(velocity.x) == dive_dir.x:
-			velocity.x += dive_dir.x *SPEED_LIMIT
-			print(velocity.x)
+			velocity.x += dive_dir.x *DIVE_BOOST
+			#print(velocity.x)
 		else:
-			velocity.x = dive_dir.x * SPEED_LIMIT
+			velocity.x = dive_dir.x * DIVE_BOOST
 			
 		if sign(velocity.y) == dive_dir.y:
-			velocity.y += dive_dir.y * P_SPEED
-			
+			velocity.y += dive_dir.y * DIVE_BOOST
 		else:
-			velocity.y = dive_dir.y * P_SPEED
+			velocity.y = dive_dir.y * DIVE_BOOST
 			#print(velocity.y)
 		velocity = P_SPEED * dive_dir
 		
-		if is_on_wall():
+		if is_on_wall() :
 			print(\"something\")
 			_change_state(State.WALL)
 		if is_on_floor():
@@ -399,9 +409,13 @@ func _state_wall(delta: float) -> void:
 
 	velocity.y = move_toward(velocity.y ,WALL_SLIDE_SPEED, WALL_SLIDE_accel ) 
 	velocity.x = -norm.x * 30
-
+	print(wall_extencion_window)
 	if jump_buffer_timer > 0:
-		velocity = Vector2(norm.x * WALL_JUMP_PUSH.x, WALL_JUMP_PUSH.y)
+		if velocity.y <= WALL_JUMP_PUSH.y or wall_extencion_window > 0:
+			velocity = Vector2(norm.x * WALL_JUMP_PUSH.x,velocity.y + (WALL_JUMP_PUSH.y/2))
+			print(\"wall extencion\")
+		else:
+			velocity = Vector2(norm.x * WALL_JUMP_PUSH.x, WALL_JUMP_PUSH.y)
 		facing = sign(velocity.x)
 		wall_jump_lockout = 0.2
 		_change_state(State.AIR)
@@ -423,8 +437,8 @@ func _state_crouch(delta: float) -> void:
 	if not Input.is_action_pressed(\"down\"):
 		print(\"ground5\")
 		_change_state(State.GROUND)
-	if jump_buffer_timer > 0:
-		velocity.y = JUMP_VELOCITY * 1.5
+	if jump_buffer_timer > 0 and abs(velocity.x) < 300:
+		velocity.y = Backflip_height
 		
 		_change_state(State.BACKFLIP)
 		jump_buffer_timer = 0
@@ -518,6 +532,7 @@ func _handle_landings() -> void:
 				_change_state(State.GROUND)
 
 func _change_state(new_state: State) -> void:
+	
 	if current_state == new_state:
 		return
 
@@ -963,7 +978,11 @@ floor_snap_length = 8.0
 script = SubResource("GDScript_sh265")
 GRAVITY = 2000.0
 WALL_SLIDE_accel = 20
+DIVE_BOOST = 800.0
 Dive_duration_time = 8
+wall_extension_duration = 15
+Backflip_vel = 400.0
+Backflip_height = -840
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1199008200]
 ignore_rotation = false
