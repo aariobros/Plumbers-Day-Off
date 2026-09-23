@@ -59,6 +59,8 @@ var is_dead := false
 @export var Backflip_vel := 600.0
 @export var Backflip_height := -720
 @export var Backflip_duration := 10.0
+@export_subgroup(\"ledge grab\")
+@export var ledge_exit_vel := 100
 
 @export_group(\"Damage\")
 @export var KNOCKBACK_FORCE := 260.0
@@ -252,7 +254,8 @@ func _physics_process(delta: float) -> void:
 		State.SPIN:     _state_spin(delta)
 		State.CROUCH:   _state_crouch(delta)
 		State.BONK:     _state_bonk(delta)
-		State.BACKFLIP: _state_backflip(delta); print(\"backflip\")
+		State.BACKFLIP: _state_backflip(delta)
+		State.LEDGE_GRAB:_state_ledge_grab(delta)
 
 	velocity.x = clamp(velocity.x, -SPEED_LIMIT, SPEED_LIMIT)
 
@@ -405,11 +408,16 @@ func _state_wall(delta: float) -> void:
 	var wall_dir := (int(wall_check_left.is_colliding())) + (int(wall_check_right.is_colliding())*-1)
 	var move := Input.get_axis(\"left\",\"right\")
 	var norm = last_wall_normal
-	var pushing = (wall_dir < 0 ) or (wall_dir > 0 )
+	var pushing = (norm.x < 0 ) or (norm.x > 0 )
 
-	velocity.y = move_toward(velocity.y ,WALL_SLIDE_SPEED, WALL_SLIDE_accel ) 
+	if pushing == true:
+		facing = int(norm.x * -1)
+		velocity.y = move_toward(velocity.y ,WALL_SLIDE_SPEED, WALL_SLIDE_accel ) 
+		if wall_dir == 0 and velocity.y > -100 and is_on_wall():
+			
+			_change_state(State.LEDGE_GRAB)
 	velocity.x = -norm.x * 30
-	print(wall_extencion_window)
+	
 	if jump_buffer_timer > 0:
 		if velocity.y <= WALL_JUMP_PUSH.y or wall_extencion_window > 0:
 			velocity = Vector2(norm.x * WALL_JUMP_PUSH.x,velocity.y + (WALL_JUMP_PUSH.y/2))
@@ -423,7 +431,7 @@ func _state_wall(delta: float) -> void:
 
 	if is_on_floor() or wall_grace_timer <= 0 or move + wall_dir == 0:
 		_change_state(State.AIR)
-		facing = wall_dir
+		
 		velocity.x = WALK_SPEED * move
 
 func _state_skid(delta: float) -> void:
@@ -486,6 +494,28 @@ func _state_backflip(delta: float) -> void:
 		else:
 			_change_state(State.AIR)
 
+func _state_ledge_grab(delta: float) -> void:
+	var move := Input.get_axis(\"left\",\"right\")
+	
+	if velocity.y > -100:
+		velocity = Vector2.ZERO
+		if get_wall_normal().x == move:
+			_change_state(State.AIR)
+			facing = int(move)
+			velocity.x = WALK_SPEED * move
+	if jump_buffer_timer > 0:
+		velocity.y = JUMP_VELOCITY * 0.9
+		jump_buffer_timer = 0
+	if not is_on_wall():
+		velocity.x = ledge_exit_vel * (last_wall_normal.x * -1)
+		_change_state(State.AIR)
+		facing = sign(last_wall_normal.x) 
+		return
+	
+		
+		
+		
+		return
 #endregion
 
 #region ---------- helpers ----------
@@ -983,6 +1013,7 @@ Dive_duration_time = 8
 wall_extension_duration = 15
 Backflip_vel = 400.0
 Backflip_height = -840
+ledge_exit_vel = 400
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1199008200]
 ignore_rotation = false
@@ -993,12 +1024,11 @@ editor_draw_drag_margin = true
 script = SubResource("GDScript_4flbx")
 
 [node name="wall_check_left" type="RayCast2D" parent="." unique_id=1355714117]
-visible = false
-position = Vector2(0, 8)
+position = Vector2(0, 2)
 target_position = Vector2(6, 0)
 
 [node name="wall_check_right" type="RayCast2D" parent="." unique_id=1462866070]
-position = Vector2(0, 8)
+position = Vector2(0, 2)
 target_position = Vector2(-6, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1978322562]
