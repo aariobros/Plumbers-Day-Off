@@ -61,6 +61,11 @@ var is_dead := false
 @export var Backflip_duration := 10.0
 @export_subgroup(\"ledge grab\")
 @export var ledge_exit_vel := 100
+@export var perfect_ledge_exit_window := 5
+@export var ledge_jump_buffer_duration := 5
+@export var ledge_up_pull := 180
+@export var ledge_pull_buffer_duration:= 20
+
 
 @export_group(\"Damage\")
 @export var KNOCKBACK_FORCE := 260.0
@@ -73,7 +78,7 @@ var original_z_index := 0
 #endregion
 
 #region ---------- states ----------
-enum State { GROUND, AIR, SKID, WALL, DIVE, GP_STALL, GP_FALL, ROLL, SPIN, BONK, CROUCH, DEATH, LEDGE_GRAB, BACKFLIP }
+enum State { GROUND, AIR, SKID, WALL, DIVE, GP_STALL, GP_FALL, ROLL, SPIN, BONK, CROUCH, DEATH, LEDGE_GRAB, LEDGE_JUMP, LEDGE_PULL, BACKFLIP }
 
 #endregion
 
@@ -90,7 +95,7 @@ var wall_jump_lockout := 0.0
 var is_side_flipping := false
 var wall_grace_timer := 0.0
 var last_wall_normal := Vector2.ZERO
-#endregion
+
 
 #region dive runtime
 var dive_buffer_timer := Dive_buffer_time
@@ -103,10 +108,23 @@ var wall_extencion_window := 0
 var backflip_timer := Backflip_duration
 #endregion
 
+#region ledge grab/jump
+var ledge_exit_rotation := 0
+var perfect_exit_speed := 0.0
+var perfect_ledge_exit_timer := perfect_ledge_exit_window
+var ledge_jump_buffer_timer := ledge_jump_buffer_duration
+var ledge_pull_buffer_timer := ledge_pull_buffer_duration
+#endregion
+
+#endregion
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var wall_check_left: RayCast2D = $wall_check_left
 @onready var wall_check_right: RayCast2D = $wall_check_right
+
+@onready var dwall_check_left: RayCast2D = $Dwall_check_left
+@onready var dwall_check_right: RayCast2D = $Dwall_check_right
+
 
 
 #region ---------- animation/vfx ---------
@@ -115,6 +133,7 @@ var backflip_timer := Backflip_duration
 @export var Roll_rotation := 2360
 @export var Spin_rotation := 2360
 @export var Backflip_rotation := -1000
+@export var perfect_ledge_exit_rotation := 2300
 
 #endregion
 #region ---------- ready ----------
@@ -256,6 +275,8 @@ func _physics_process(delta: float) -> void:
 		State.BONK:     _state_bonk(delta)
 		State.BACKFLIP: _state_backflip(delta)
 		State.LEDGE_GRAB:_state_ledge_grab(delta)
+		State.LEDGE_JUMP:_state_ledge_jump(delta)
+		State.LEDGE_PULL:_state_ledge_pull(delta)
 
 	velocity.x = clamp(velocity.x, -SPEED_LIMIT, SPEED_LIMIT)
 
@@ -301,14 +322,17 @@ func _state_ground(delta: float) -> void:
 
 func _state_air(delta: float) -> void:
 	var move := Input.get_axis(\"left\", \"right\")
-	var wall_touchin :=  (int(wall_check_left.is_colliding())) + (int(wall_check_right.is_colliding())*-1)
+	var wall_dir := (int(wall_check_left.is_colliding())) + (int(wall_check_right.is_colliding())*-1)
 
 	if wall_grace_timer > 0  and wall_jump_lockout <= 0:
 		var norm = last_wall_normal
 		
 		if (last_wall_normal.x < 0 ) or (last_wall_normal.x > 0):
-		
-			_change_state(State.WALL)
+			if wall_dir == 0 and velocity.y > -100 and is_on_wall():
+			
+				_change_state(State.LEDGE_GRAB)
+			else:
+				_change_state(State.WALL)
 			return
 
 	if wall_jump_lockout <= 0:
@@ -325,6 +349,13 @@ func _state_air(delta: float) -> void:
 
 	if jump_buffer_timer > 0 and (is_on_floor() or coyote_timer > 0):
 		_perform_jump(Input.is_action_pressed(\"spin_jump\"))
+
+	if abs(velocity.x) > 300:
+		perfect_exit_speed = velocity.x
+	
+	#if not perfect_ledge_exit_timer == 0 and not perfect_ledge_exit_timer == perfect_ledge_exit_window:
+		#print(\"speed after perfect \", velocity.x)
+
 
 func _state_dive(delta: float) -> void:
 	var wall_dir := (int(wall_check_left.is_colliding())) + (int(wall_check_right.is_colliding())*-1)
@@ -434,6 +465,9 @@ func _state_wall(delta: float) -> void:
 		
 		velocity.x = WALK_SPEED * move
 
+	if perfect_exit_speed != 0:
+		_handle_perfect_ledge_exit_speed()
+
 func _state_skid(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, 0, SKID_FRICTION * delta)
 	if abs(velocity.x) < 40:
@@ -495,27 +529,77 @@ func _state_backflip(delta: float) -> void:
 			_change_state(State.AIR)
 
 func _state_ledge_grab(delta: float) -> void:
+	var wall_dir := (int(wall_check_left.is_colliding())) + (int(wall_check_right.is_colliding())*-1)
 	var move := Input.get_axis(\"left\",\"right\")
-	
-	if velocity.y > -100:
+
+	facing = last_wall_normal.x *-1
+	if velocity.y > -100 and wall_dir != 0:
 		velocity = Vector2.ZERO
-		if get_wall_normal().x == move:
-			_change_state(State.AIR)
-			facing = int(move)
-			velocity.x = WALK_SPEED * move
+	if get_wall_normal().x == move:
+		_change_state(State.AIR)
+		facing = int(move)
+		velocity.x = WALK_SPEED * move
+	if ledge_pull_buffer_timer <= 0 and abs(last_wall_normal.x + move) == 0 :
+		velocity.y = ledge_up_pull
+		_change_state(State.LEDGE_PULL)
+		
+		return
+
 	if jump_buffer_timer > 0:
 		velocity.y = JUMP_VELOCITY * 0.9
 		jump_buffer_timer = 0
-	if not is_on_wall():
-		velocity.x = ledge_exit_vel * (last_wall_normal.x * -1)
-		_change_state(State.AIR)
-		facing = sign(last_wall_normal.x) 
+		velocity.x = last_wall_normal.x
+		_change_state(State.LEDGE_JUMP)
+	
+	if is_on_floor():
+		_change_state(State.GROUND)
+		return
+
+	if perfect_exit_speed != 0:
+		_handle_perfect_ledge_exit_speed()
+
+	if ledge_pull_buffer_timer > 0:
+		ledge_pull_buffer_timer -= 1
+		print(\"ledge buffer \",ledge_pull_buffer_timer)
+
+
+func _state_ledge_jump(delta: float) -> void:
+	var Dwall_dir := (int(dwall_check_left.is_colliding())) + (int(dwall_check_right.is_colliding())*-1)
+
+	if abs(perfect_exit_speed) > ledge_exit_vel:
+		ledge_exit_rotation = perfect_ledge_exit_rotation
+	else:
+		ledge_exit_rotation = 0
+
+	if Dwall_dir == 0 and not is_on_wall():
+		ledge_jump_buffer_timer -= 1
+		#print(\"ledge jump\")
+		if abs(perfect_exit_speed) > ledge_exit_vel:
+			velocity.x = perfect_exit_speed 
+			print(\"yes \",velocity.x)
+			perfect_ledge_exit_timer = perfect_ledge_exit_window
+			if ledge_jump_buffer_timer <= 0:
+				_change_state(State.AIR)
+				ledge_jump_buffer_timer = ledge_jump_buffer_duration
+		else:
+			velocity.x = ledge_exit_vel * (last_wall_normal.x * -1)
+			if ledge_jump_buffer_timer <= ledge_jump_buffer_duration/2:
+				_change_state(State.AIR)
+				ledge_jump_buffer_timer = ledge_jump_buffer_duration
+		
+
+
+func _state_ledge_pull(delta: float) -> void:
+	var Dwall_dir := (int(dwall_check_left.is_colliding())) + (int(dwall_check_right.is_colliding())*-1)
+
+	#print(\"ledge pull\")
+	velocity.y = ledge_up_pull
+	if Dwall_dir == 0 and not is_on_wall():
+		velocity.x = ledge_exit_vel/2 * facing 
+		velocity.y = 0
+		_change_state(State.GROUND)
 		return
 	
-		
-		
-		
-		return
 #endregion
 
 #region ---------- helpers ----------
@@ -598,7 +682,8 @@ func _update_timers(delta: float) -> void:
 		velocity.y += DEATH_GRAVITY * delta
 	
 		move_and_slide()
-	
+	if not current_state in [State.LEDGE_PULL, State.LEDGE_GRAB, State.LEDGE_JUMP]:
+		ledge_pull_buffer_timer = ledge_pull_buffer_duration
 	return
 
 
@@ -611,7 +696,9 @@ func _animate(delta: float) -> void:
 		State.ROLL: Roll_rotation,       # roll spins
 		State.SPIN: Spin_rotation,       # spin jump spins
 		State.GP_STALL: 2360,    # ground pound stall spins
-		State.BACKFLIP : Backflip_rotation 
+		State.BACKFLIP : Backflip_rotation ,
+		State.LEDGE_JUMP : ledge_exit_rotation
+			
 	}
 
 	# Apply rotation if in spin state, else reset
@@ -651,6 +738,19 @@ func _animate(delta: float) -> void:
 			sprite.play(\"die\")
 		State.BACKFLIP:
 			sprite.play(\"jump\")
+		State.LEDGE_GRAB:
+			sprite.play(\"wall_slide\")
+		State.LEDGE_JUMP:
+			sprite.play(\"jump\")
+
+func _handle_perfect_ledge_exit_speed():
+	if perfect_exit_speed == 0:
+		return
+	if perfect_ledge_exit_timer > 0:
+		perfect_ledge_exit_timer -= 1
+	else:
+		perfect_exit_speed = 0
+		perfect_ledge_exit_timer = perfect_ledge_exit_window
 
 #endregion
 "
@@ -1013,7 +1113,10 @@ Dive_duration_time = 8
 wall_extension_duration = 15
 Backflip_vel = 400.0
 Backflip_height = -840
-ledge_exit_vel = 400
+ledge_exit_vel = 340
+perfect_ledge_exit_window = 15
+ledge_jump_buffer_duration = 8
+ledge_up_pull = -540
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1199008200]
 ignore_rotation = false
@@ -1040,7 +1143,7 @@ texture_filter = 1
 position = Vector2(0, 6.0000005)
 scale = Vector2(0.62000597, 0.620006)
 sprite_frames = SubResource("SpriteFrames_n7ghd")
-animation = &"idle"
+animation = &"wall_slide"
 autoplay = "idle"
 
 [node name="Ceiling_R" type="RayCast2D" parent="." unique_id=2089809039]
@@ -1058,3 +1161,11 @@ target_position = Vector2(0, 18)
 [node name="SlopecastL" type="RayCast2D" parent="." unique_id=1144106909]
 position = Vector2(-4, -1)
 target_position = Vector2(0, 18)
+
+[node name="Dwall_check_left" type="RayCast2D" parent="." unique_id=315976927]
+position = Vector2(0, 17)
+target_position = Vector2(7, 0)
+
+[node name="Dwall_check_right" type="RayCast2D" parent="." unique_id=1105153935]
+position = Vector2(0, 17)
+target_position = Vector2(-7, 0)
