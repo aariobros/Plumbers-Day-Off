@@ -1,0 +1,119 @@
+[gd_scene format=3 uid="uid://bea558noe02pm"]
+
+[ext_resource type="Script" uid="uid://llrtphpi7hpb" path="res://player2.gd" id="1_3r5ht"]
+[ext_resource type="Texture2D" uid="uid://5crnsst5gmy6" path="res://assets/Mario/marario.png" id="2_rihsh"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vop8p"]
+atlas = ExtResource("2_rihsh")
+region = Rect2(139, 0, 63, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tj0vx"]
+atlas = ExtResource("2_rihsh")
+region = Rect2(202, 0, 63, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bhnal"]
+atlas = ExtResource("2_rihsh")
+region = Rect2(265, 0, 63, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uqwy3"]
+atlas = ExtResource("2_rihsh")
+region = Rect2(328, 0, 63, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8caby"]
+atlas = ExtResource("2_rihsh")
+region = Rect2(139, 96, 63, 96)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_sxutr"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vop8p")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tj0vx")
+}],
+"loop": 1,
+"name": &"idleanim",
+"speed": 2.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bhnal")
+}],
+"loop": 1,
+"name": &"jump",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_uqwy3")
+}],
+"loop": 1,
+"name": &"run",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8caby")
+}],
+"loop": 1,
+"name": &"walk",
+"speed": 10.0
+}]
+
+[sub_resource type="SegmentShape2D" id="SegmentShape2D_b0vwk"]
+a = Vector2(0, -4.76837e-07)
+b = Vector2(0, -15)
+
+[node name="Player" type="CharacterBody2D" unique_id=1114989174]
+floor_constant_speed = true
+floor_block_on_wall = false
+floor_max_angle = 1.55334
+floor_snap_length = 12.0
+safe_margin = 0.16
+script = ExtResource("1_3r5ht")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=683923642]
+sprite_frames = SubResource("SpriteFrames_sxutr")
+animation = &"walk"
+autoplay = "idle"
+offset = Vector2(0, -23.8)
+
+[node name="Collision" type="CollisionShape2D" parent="." unique_id=2102058453]
+position = Vector2(0, -9.53674e-07)
+shape = SubResource("SegmentShape2D_b0vwk")
+
+[node name="Raycast" type="RayCast2D" parent="Collision" unique_id=1748557305]
+position = Vector2(0, 9.53674e-07)
+target_position = Vector2(0, 4)
+
+[node name="WallCast" type="RayCast2D" parent="Collision" unique_id=1272016309]
+position = Vector2(0, -9)
+target_position = Vector2(5, 0)
+hit_from_inside = true
+
+[node name="ControlLockTimer" type="Timer" parent="." unique_id=70671418]
+wait_time = 0.5
+one_shot = true
+
+[node name="IdleTimer" type="Timer" parent="." unique_id=2100055941]
+wait_time = 3.0
+one_shot = true
+
+[node name="JumpBufferTimer" type="Timer" parent="." unique_id=572050525]
+wait_time = 0.1
+one_shot = true
+
+[node name="CoyoteTimer" type="Timer" parent="." unique_id=1650088362]
+wait_time = 0.2
+one_shot = true
+
+[connection signal="timeout" from="ControlLockTimer" to="." method="_on_control_lock_timer_timeout"]
+[connection signal="timeout" from="IdleTimer" to="." method="_on_idle_timer_timeout"]
+[connection signal="timeout" from="JumpBufferTimer" to="." method="_on_jump_buffer_timer_timeout"]
+[connection signal="timeout" from="CoyoteTimer" to="." method="_on_coyote_timer_timeout"]
