@@ -1,6 +1,6 @@
 extends Control
 
-
+@export var current_theme : AudioStream
 
 
 @onready var start_button = $VBoxContainer/Start

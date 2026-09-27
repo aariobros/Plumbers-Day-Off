@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://f7xnx8h3lgt1"
+path="res://.godot/imported/zapzap im gay but im more pan.mp3-298be5408ad1238f68d5388d9d7f36bc.mp3str"
+
+[deps]
+
+source_file="res://Music/zapzap im gay but im more pan.mp3"
+dest_files=["res://.godot/imported/zapzap im gay but im more pan.mp3-298be5408ad1238f68d5388d9d7f36bc.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

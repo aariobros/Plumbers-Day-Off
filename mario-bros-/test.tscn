@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://dgwrlxtkvl7ge" path="res://player.tscn" id="1_37kl0"]
 [ext_resource type="Script" uid="uid://bhq71qtebv0tr" path="res://test.gd" id="1_ehkex"]
 [ext_resource type="PackedScene" uid="uid://bth36b43q3u1r" path="res://HUD.tscn" id="1_vbegm"]
+[ext_resource type="AudioStream" uid="uid://c5ur5ijd1p6mp" path="res://Music/breeze.mp3" id="2_00tp4"]
 [ext_resource type="TileSet" uid="uid://bjxuwvcuekc05" path="res://assets/tiles/test tileset.tres" id="2_6uqi0"]
 [ext_resource type="Texture2D" uid="uid://dhwajtto1yfyb" path="res://assets/tiles/tileset.png" id="2_8uh7m"]
 [ext_resource type="PackedScene" uid="uid://ct1odkdnx5bvp" path="res://platform.tscn" id="5_ykrsh"]
@@ -200,6 +201,7 @@ shader_parameter/tolerance = 0.1
 
 [node name="Node2D" type="Node2D" unique_id=1761552941]
 script = ExtResource("1_ehkex")
+current_theme = ExtResource("2_00tp4")
 
 [node name="player" parent="." unique_id=490315535 instance=ExtResource("1_37kl0")]
 position = Vector2(-15, -62)

@@ -391,7 +391,7 @@ func _state_ground(delta: float) -> void:
 		print(\"yes2\")
 	
 	
-	velocity = Vector2(Gvelocity.x, Gvelocity.y).rotated(slopeangle)
+	velocity = Vector2(Gvelocity.x, Gvelocity.y).rotated(Player_collision.rotation)
 	
 
 
@@ -690,7 +690,7 @@ func _handle_p_meter_logic(delta: float) -> void:
 		p_meter = move_toward(p_meter, 0, delta * 2.0)
 
 func _perform_jump(spin: bool) -> void:
-	velocity = (Vector2(Gvelocity.x*1.8, JUMP_VELOCITY).rotated(slopeangle) if not spin else Vector2(velocity.x,-620.0))
+	velocity = (Vector2(Gvelocity.x*1.8, JUMP_VELOCITY).rotated(Player_collision.rotation) if not spin else Vector2(velocity.x,-620.0))
 	_change_state(State.AIR if not spin else State.SPIN)
 	jump_buffer_timer = 0
 	coyote_timer = 0
@@ -842,20 +842,7 @@ func _handle_player_rotation():
 	
 	
 
-func _get_angle() -> float:
-	var cast: RayCast2D
 
-	if facing == 1:
-		cast = slopecast_r
-	elif facing == -1:
-		cast = slopecast_l
-	else:
-		return 0.0
-
-	if not cast.is_colliding():
-		return 0.0
-
-	return cast.get_collision_normal().angle() + PI / 2
 #endregion
 "
 
