@@ -37,4 +37,10 @@ func update_music():
 		print("no themes")
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
-	pass
+	if Music.stream == null:
+		return
+	if not Music.playing :
+		Music.play()
+		#print("restart tune")
+	else:
+		return

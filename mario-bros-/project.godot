@@ -11,6 +11,7 @@ config_version=5
 [application]
 
 config/name="Mario bros"
+config/tags=PackedStringArray("alpha")
 run/main_scene="uid://bi6gcdgdmfx42"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
@@ -92,3 +93,4 @@ up={
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true

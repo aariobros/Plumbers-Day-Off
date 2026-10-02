@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://vi8m6mkuliyb"]
 
-[ext_resource type="Theme" uid="uid://b4d86sqg2c263" path="res://UI-big.tres" id="1_lbr8e"]
-[ext_resource type="Script" uid="uid://yvh0y4sclq8e" path="res://options_menu.gd" id="1_t1lix"]
+[ext_resource type="Theme" uid="uid://b4d86sqg2c263" path="res://ui/UI-big.tres" id="1_lbr8e"]
+[ext_resource type="Script" uid="uid://yvh0y4sclq8e" path="res://ui/options_menu.gd" id="1_t1lix"]
 
 [node name="OptionsMenu" type="Control" unique_id=1376334832]
 layout_mode = 3

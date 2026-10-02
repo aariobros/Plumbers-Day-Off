@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bth36b43q3u1r"]
 
-[ext_resource type="Script" uid="uid://bil1p8p2uufom" path="res://hud.gd" id="1_k5de2"]
+[ext_resource type="Script" uid="uid://bil1p8p2uufom" path="res://ui/hud.gd" id="1_k5de2"]
 [ext_resource type="Texture2D" uid="uid://di4aeuxhsov8n" path="res://assets/MISC/pixil-frame-0 (1).png" id="2_efote"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_efote"]
@@ -69,7 +69,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_gbfpv")
 }],
-"loop": true,
+"loop": 1,
 "name": &"healthbar",
 "speed": 5.0
 }]

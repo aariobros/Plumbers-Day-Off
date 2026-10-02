@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bea558noe02pm"]
 
-[ext_resource type="Script" uid="uid://llrtphpi7hpb" path="res://player2.gd" id="1_3r5ht"]
+[ext_resource type="Script" uid="uid://llrtphpi7hpb" path="res://players/player2.gd" id="1_3r5ht"]
 [ext_resource type="Texture2D" uid="uid://5crnsst5gmy6" path="res://assets/Mario/marario.png" id="2_rihsh"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_vop8p"]

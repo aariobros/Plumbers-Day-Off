@@ -3,12 +3,12 @@
 importer="font_data_dynamic"
 type="FontFile"
 uid="uid://b6kao4b2hejpo"
-path="res://.godot/imported/MARIO_Font_v3_Solid.otf-36095343218e16bd747429ce64c30186.fontdata"
+path="res://.godot/imported/MARIO_Font_v3_Solid.otf-2c5024e959a6444c78e0fe8296f9d53e.fontdata"
 
 [deps]
 
-source_file="res://MARIO_Font_v3_Solid.otf"
-dest_files=["res://.godot/imported/MARIO_Font_v3_Solid.otf-36095343218e16bd747429ce64c30186.fontdata"]
+source_file="res://assets/MARIO_Font_v3_Solid.otf"
+dest_files=["res://.godot/imported/MARIO_Font_v3_Solid.otf-2c5024e959a6444c78e0fe8296f9d53e.fontdata"]
 
 [params]
 
