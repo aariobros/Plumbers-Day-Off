@@ -1,6 +1,6 @@
-[gd_scene format=3 uid="uid://cd2uow48yu5ky"]
+[gd_scene format=3 uid="uid://cuj3l7e2b73ag"]
 
-[ext_resource type="Texture2D" uid="uid://di5a1pv5iuup3" path="res://icon.png" id="1_tt7e2"]
+[ext_resource type="Texture2D" uid="uid://di5a1pv5iuup3" path="res://icon.png" id="1_tbss1"]
 
 [sub_resource type="GDScript" id="GDScript_gqquq"]
 script/source = "extends CharacterBody2D
@@ -72,6 +72,6 @@ debug_color = Color(0.7179783, 0.4542758, 0.43982083, 0.41960785)
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1169577456]
 position = Vector2(1.1920929e-06, -2.3841858e-07)
 scale = Vector2(0.31250003, 0.31250003)
-texture = ExtResource("1_tt7e2")
+texture = ExtResource("1_tbss1")
 
 [connection signal="body_entered" from="Hitbox" to="." method="_on_hitbox_body_entered"]

@@ -1,7 +1,7 @@
 [gd_scene format=4 uid="uid://y3gms4eaw1co"]
 
 [ext_resource type="Script" uid="uid://bhq71qtebv0tr" path="res://stages/test.gd" id="1_8c0bq"]
-[ext_resource type="AudioStream" uid="uid://c5ur5ijd1p6mp" path="res://Music/breeze.mp3" id="2_hioi3"]
+[ext_resource type="AudioStream" uid="uid://c5ur5ijd1p6mp" path="res://sound/Music/breeze.mp3" id="2_hioi3"]
 [ext_resource type="PackedScene" uid="uid://dgwrlxtkvl7ge" path="res://players/player.tscn" id="3_if2t0"]
 [ext_resource type="TileSet" uid="uid://bjxuwvcuekc05" path="res://assets/tiles/test tileset.tres" id="4_o6iek"]
 [ext_resource type="Texture2D" uid="uid://dhwajtto1yfyb" path="res://assets/tiles/tileset.png" id="5_g5pl3"]

@@ -1,6 +1,14 @@
-[gd_scene format=3 uid="uid://8w0lyx1mm1ty"]
+[gd_scene format=3 uid="uid://cogdaxit4domf"]
 
-[ext_resource type="Script" uid="uid://bvehe52ba10co" path="res://ghost.gd" id="1_v5pp4"]
+[sub_resource type="GDScript" id="GDScript_0tr3y"]
+script/source = "extends Sprite2D
+
+func _ready() -> void:
+	# Create a simple fade-out effect
+	var tween = create_tween()
+	tween.tween_property(self, \"self_modulate:a\", 0.0, 0.35).set_trans(Tween.TRANS_SINE)
+	tween.finished.connect(queue_free)
+"
 
 [node name="Sprite2D" type="Sprite2D" unique_id=479937242]
-script = ExtResource("1_v5pp4")
+script = SubResource("GDScript_0tr3y")

@@ -14,11 +14,11 @@ func _ready():
 
 func _on_start_pressed():
 	print("Start pressed")
-	get_tree().change_scene_to_file("res://test.tscn")
+	get_tree().change_scene_to_file("uid://y3gms4eaw1co")
 
 func _on_options_pressed():
 	print("Options pressed")
-	get_tree().change_scene_to_file("res://options_menu.tscn")
+	get_tree().change_scene_to_file("uid://vi8m6mkuliyb")
 
 func _on_quit_pressed():
 	get_tree().quit()
