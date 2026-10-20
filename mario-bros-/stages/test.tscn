@@ -257,16 +257,16 @@ player_node = NodePath("../player")
 z_index = -1
 position = Vector2(523, -119)
 
-[node name="Node" type="Node" parent="." unique_id=44084949]
+[node name="Node2D" type="Node2D" parent="." unique_id=871233606]
 
-[node name="atmospheric_shader2" parent="." unique_id=77423543 instance=ExtResource("9_h1tn4")]
+[node name="atmospheric_shader2" parent="Node2D" unique_id=77423543 instance=ExtResource("9_h1tn4")]
 material = SubResource("ShaderMaterial_5tkv4")
 offset_left = 4480.0
 offset_top = -14.0
 offset_right = 4608.0
 offset_bottom = 1766.0
 
-[node name="atmospheric_shader" parent="." unique_id=1397743526 instance=ExtResource("9_h1tn4")]
+[node name="atmospheric_shader" parent="Node2D" unique_id=1397743526 instance=ExtResource("9_h1tn4")]
 material = SubResource("ShaderMaterial_5tkv4")
 offset_left = -1023.0
 offset_top = 370.0

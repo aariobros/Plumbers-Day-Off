@@ -308,7 +308,7 @@ func _physics_process(delta: float) -> void:
 		State.LEDGE_PULL:_state_ledge_pull(delta)
 		State.WATER:_state_water_swimming(delta)
 	
-	print(current_state)
+	#print(current_state)
 
 	#velocity.x = clamp(velocity.x, -SPEED_LIMIT, SPEED_LIMIT)
 
@@ -628,16 +628,20 @@ func _state_ledge_grab(delta: float) -> void:
 	var wall_dir := (int(wall_check_left.is_colliding())) + (int(wall_check_right.is_colliding())*-1)
 	var move := Input.get_axis(\"left\",\"right\")
 
+	if ledge_lock == true:
+		velocity = Vector2.ZERO
 	facing = last_wall_normal.x *-1
 	if velocity.y > -100 and wall_dir != 0:
 		if ledge_lock == false:
-			global_position.y -= 1
+			global_position.y -= 15
 			ledge_lock = true
+			print(\"lock\")
 		else:
 			_change_state(State.WALL)
+			print(\"exit from lock\")
+			return
 		
-	if ledge_lock == true:
-		velocity = Vector2.ZERO
+	
 	
 	if get_wall_normal().x == move:
 		_change_state(State.AIR)
@@ -1305,6 +1309,7 @@ position = Vector2(-0.5, 10)
 target_position = Vector2(-7, 0)
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=2078175759]
+visible = false
 texture_filter = 1
 position = Vector2(0, 6.0000005)
 scale = Vector2(0.62000597, 0.620006)
