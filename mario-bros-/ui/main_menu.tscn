@@ -1,0 +1,107 @@
+[gd_scene format=3 uid="uid://db8kgitrxourh"]
+
+[ext_resource type="Texture2D" uid="uid://crjsbl8nb3imo" path="res://assets/MISC/Menu/TitleIcon.png" id="1_t7e0r"]
+[ext_resource type="Script" uid="uid://wg8yaf1msl0t" path="res://ui/main_menu.gd" id="1_wk0pr"]
+[ext_resource type="Texture2D" uid="uid://ccvfk6840wyha" path="res://assets/MISC/Menu/MainMenuBG.png" id="2_rmr83"]
+[ext_resource type="AudioStream" uid="uid://cw0h6bya28bte" path="res://assets/Sound/music/Aptro - Zapophone - Kosmilux Original Soundtrack.mp3" id="4_8uxxo"]
+[ext_resource type="AudioStream" uid="uid://cbacanp1dagu4" path="res://assets/Sound/music/Places, Everyone! - Kosmilux Original Soundtrack.mp3" id="5_ei257"]
+
+[node name="MainMenu" type="Control" unique_id=248863286]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_wk0pr")
+
+[node name="mainmenu" type="Control" parent="." unique_id=923116215]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="bg" type="TextureRect" parent="mainmenu" unique_id=623111824]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_rmr83")
+expand_mode = 2
+
+[node name="container" type="VBoxContainer" parent="mainmenu/bg" unique_id=520620692]
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 330.0
+grow_vertical = 2
+
+[node name="logo" type="TextureRect" parent="mainmenu/bg/container" unique_id=389030768]
+layout_mode = 2
+texture = ExtResource("1_t7e0r")
+expand_mode = 5
+
+[node name="Start" type="Button" parent="mainmenu/bg/container" unique_id=2111269367]
+layout_mode = 2
+text = "Start"
+
+[node name="Settings" type="Button" parent="mainmenu/bg/container" unique_id=97330189]
+layout_mode = 2
+text = "Settings
+"
+
+[node name="Quit" type="Button" parent="mainmenu/bg/container" unique_id=784941335]
+layout_mode = 2
+text = "Quit"
+
+[node name="mainmusic" type="AudioStreamPlayer" parent="mainmenu" unique_id=1555730959]
+stream = ExtResource("4_8uxxo")
+
+[node name="title_bg" type="ColorRect" parent="." unique_id=332468687]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="logo" type="TextureRect" parent="title_bg" unique_id=1459721181]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -253.0
+offset_top = -254.0
+offset_right = 253.0
+offset_bottom = 254.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1_t7e0r")
+expand_mode = 4
+
+[node name="text" type="Label" parent="title_bg/logo" unique_id=22454661]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -23.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "Press anything to start!"
+horizontal_alignment = 1
+
+[node name="titlemusic" type="AudioStreamPlayer" parent="title_bg" unique_id=1720698518]
+stream = ExtResource("5_ei257")
+autoplay = true
+
+[connection signal="button_down" from="mainmenu/bg/container/Start" to="." method="_on_start_button_down"]
+[connection signal="button_down" from="mainmenu/bg/container/Settings" to="." method="_on_settings_button_down"]
+[connection signal="button_down" from="mainmenu/bg/container/Quit" to="." method="_on_quit_button_down"]

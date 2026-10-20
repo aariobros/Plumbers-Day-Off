@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://cbacanp1dagu4"
+path="res://.godot/imported/Places, Everyone! - Kosmilux Original Soundtrack.mp3-6b7bab345f255dd9432d442b1066a88a.mp3str"
+
+[deps]
+
+source_file="res://assets/Sound/music/Places, Everyone! - Kosmilux Original Soundtrack.mp3"
+dest_files=["res://.godot/imported/Places, Everyone! - Kosmilux Original Soundtrack.mp3-6b7bab345f255dd9432d442b1066a88a.mp3str"]
+
+[params]
+
+loop=true
+loop_offset=0.0
+bpm=0.0
+beat_count=0
+bar_beats=4
