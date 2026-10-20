@@ -1,0 +1,35 @@
+[gd_scene format=3 uid="uid://ce60fy3qqgajh"]
+
+[ext_resource type="Script" uid="uid://bgvcdbi1i8g4f" path="res://ui/healthbar.gd" id="1_eerok"]
+[ext_resource type="Texture2D" uid="uid://clgxp1xpajb7" path="res://assets/UI/zappyhead.png" id="2_rwa8u"]
+[ext_resource type="Texture2D" uid="uid://cmqb6itjeo1f6" path="res://assets/UI/healthbar.png" id="3_y6o7a"]
+
+[node name="Healthbar" type="Control" unique_id=1817898379]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_eerok")
+DisplayHP = 5
+
+[node name="Head" type="TextureRect" parent="." unique_id=1471620148]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -512.0
+offset_bottom = -248.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_rwa8u")
+expand_mode = 1
+stretch_mode = 4
+
+[node name="bar" type="Sprite2D" parent="Head" unique_id=1595707853]
+position = Vector2(232, 68)
+scale = Vector2(0.233, 0.233)
+texture = ExtResource("3_y6o7a")
+centered = false
+vframes = 9

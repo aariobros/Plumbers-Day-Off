@@ -1,0 +1,39 @@
+[gd_scene format=3 uid="uid://dbm1xivtc0e6p"]
+
+[ext_resource type="Texture2D" uid="uid://bsnnm6g2433xf" path="res://assets/UI/coinUI.png" id="1_8j2le"]
+
+[node name="coincounter" type="Control" unique_id=1185564886]
+layout_mode = 3
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+grow_horizontal = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=944293808]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -105.0
+offset_bottom = 88.0
+grow_horizontal = 0
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer" unique_id=1246944547]
+layout_mode = 2
+alignment = 2
+
+[node name="TextureRect" type="TextureRect" parent="MarginContainer/HBoxContainer" unique_id=1826630761]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 3
+texture = ExtResource("1_8j2le")
+expand_mode = 1
+stretch_mode = 4
+
+[node name="Label" type="Label" parent="MarginContainer/HBoxContainer" unique_id=1947637950]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "x 0"
+horizontal_alignment = 1
