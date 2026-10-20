@@ -28,6 +28,10 @@ Pauser="*uid://dfk8tvbfmt35t"
 MusicHandler="*uid://dbor3b43xkhoj"
 DiscordManager="*uid://caq2tg662eybx"
 
+[global_group]
+
+Player=""
+
 [input]
 
 run={
