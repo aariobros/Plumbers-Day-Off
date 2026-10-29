@@ -1,6 +1,8 @@
 [gd_scene format=3 uid="uid://dgwrlxtkvl7ge"]
 
 [ext_resource type="Texture2D" uid="uid://blcjlqnf3fbix" path="res://assets/Mario/pixil-frame-0.png" id="1_4flbx"]
+[ext_resource type="PackedScene" uid="uid://ce60fy3qqgajh" path="res://ui/healthbar.tscn" id="1_wu7mp"]
+[ext_resource type="PackedScene" uid="uid://dbm1xivtc0e6p" path="res://ui/coincounter.tscn" id="2_60y4r"]
 
 [sub_resource type="GDScript" id="GDScript_sh265"]
 script/source = "extends CharacterBody2D
@@ -1260,3 +1262,14 @@ scale = Vector2(0.62000597, 0.620006)
 sprite_frames = SubResource("SpriteFrames_n7ghd")
 animation = &"run"
 autoplay = "idle"
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1647217525]
+
+[node name="Healthbar" parent="CanvasLayer" unique_id=1817898379 instance=ExtResource("1_wu7mp")]
+
+[node name="coincounter" parent="CanvasLayer" unique_id=1185564886 instance=ExtResource("2_60y4r")]
+anchors_preset = 15
+anchor_left = 0.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

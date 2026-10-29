@@ -4,6 +4,10 @@
 [ext_resource type="Texture2D" uid="uid://clgxp1xpajb7" path="res://assets/UI/zappyhead.png" id="2_rwa8u"]
 [ext_resource type="Texture2D" uid="uid://cmqb6itjeo1f6" path="res://assets/UI/healthbar.png" id="3_y6o7a"]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_gujgf"]
+atlas = ExtResource("3_y6o7a")
+region = Rect2(0, 0, 0, 219)
+
 [node name="Healthbar" type="Control" unique_id=1817898379]
 layout_mode = 3
 anchors_preset = 15
@@ -12,7 +16,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_eerok")
-DisplayHP = 5
 
 [node name="Head" type="TextureRect" parent="." unique_id=1471620148]
 layout_mode = 1
@@ -27,9 +30,12 @@ texture = ExtResource("2_rwa8u")
 expand_mode = 1
 stretch_mode = 4
 
-[node name="bar" type="Sprite2D" parent="Head" unique_id=1595707853]
-position = Vector2(232, 68)
-scale = Vector2(0.233, 0.233)
-texture = ExtResource("3_y6o7a")
-centered = false
-vframes = 9
+[node name="bar" type="TextureRect" parent="Head" unique_id=1592567275]
+layout_mode = 0
+offset_left = 180.0
+offset_top = 32.0
+offset_right = 436.0
+offset_bottom = 74.999985
+texture = SubResource("AtlasTexture_gujgf")
+expand_mode = 1
+stretch_mode = 4

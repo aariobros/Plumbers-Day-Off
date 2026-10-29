@@ -1,5 +1,7 @@
 extends Control
 
+const TEST = preload("uid://y3gms4eaw1co")
+
 @onready var title_bg: ColorRect = $title_bg
 @onready var titlemusic: AudioStreamPlayer = $title_bg/titlemusic
 @onready var mainmusic: AudioStreamPlayer = $mainmenu/mainmusic
@@ -7,13 +9,12 @@ extends Control
 func _unhandled_input(event: InputEvent) -> void:
 	if Input.is_anything_pressed():
 		titlemusic.stop()
-		print("switching to main menu")
 		title_bg.hide()
 		mainmusic.play()
 
 
 func _on_start_button_down() -> void:
-	print("guh havn't done this yet")
+	get_tree().change_scene_to_packed(TEST)
 
 func _on_settings_button_down() -> void:
 	print("guh havn't done this yet")

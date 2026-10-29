@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bxsnfho305816"]
+
+[ext_resource type="Script" uid="uid://ceo56djmkqn3f" path="res://ui/dialog_area.gd" id="1_op301"]
+
+[node name="DialogArea" type="Area2D" unique_id=1843183721]
+script = ExtResource("1_op301")
