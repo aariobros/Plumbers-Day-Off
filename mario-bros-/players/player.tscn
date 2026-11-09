@@ -37,6 +37,9 @@ var is_dead := false
 @export var FRICTION := 850.0
 @export var SKID_FRICTION := 3800.0 
 @export var AIR_ACCEL := 850.0
+@export_subgroup(\"water\")
+@export var WATER_SPEED := 300
+@export var WATER_ACCEL := 100
 
 
 @export_group(\"Vertical\")
@@ -47,6 +50,9 @@ var is_dead := false
 @export var WALL_SLIDE_SPEED := 170.0 
 @export var WALL_SLIDE_accel := 1
 @export var WALL_JUMP_PUSH := Vector2(340, -780)
+
+@export_subgroup(\"water\")
+@export var WATER_BRESTSTROKE_FORCE:= -680
 
 
 @export_group(\"Moves\")
@@ -80,7 +86,7 @@ var original_z_index := 0
 #endregion
 
 #region ---------- states ----------
-enum State { GROUND, AIR, SKID, WALL, DIVE, GP_STALL, GP_FALL, ROLL, SPIN, BONK, CROUCH, DEATH, LEDGE_GRAB, LEDGE_JUMP, LEDGE_PULL, BACKFLIP }
+enum State { GROUND, AIR, SKID, WALL, DIVE, GP_STALL, GP_FALL, ROLL, SPIN, BONK, CROUCH, DEATH, LEDGE_GRAB, LEDGE_JUMP, LEDGE_PULL, BACKFLIP, WATER }
 
 #endregion
 
@@ -112,6 +118,7 @@ var backflip_timer := Backflip_duration
 
 #region ledge grab/jump
 var ledge_exit_rotation := 0
+var ledge_lock := false
 var perfect_exit_speed := 0.0
 var perfect_ledge_exit_timer := perfect_ledge_exit_window
 var ledge_jump_buffer_timer := ledge_jump_buffer_duration
@@ -123,7 +130,12 @@ var Gvelocity : Vector2
 var slopeangle := 0.0
 #endregion
 
+var in_water := false
+
 #endregion
+
+@onready var camera: Camera2D = $Camera2D
+
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var wall_check_left: RayCast2D = $CollisionShape2D/wall_check_left
@@ -299,6 +311,9 @@ func _physics_process(delta: float) -> void:
 		State.LEDGE_GRAB:_state_ledge_grab(delta)
 		State.LEDGE_JUMP:_state_ledge_jump(delta)
 		State.LEDGE_PULL:_state_ledge_pull(delta)
+		State.WATER:_state_water_swimming(delta)
+	
+	#print(current_state)
 
 	#velocity.x = clamp(velocity.x, -SPEED_LIMIT, SPEED_LIMIT)
 
@@ -311,6 +326,9 @@ func _physics_process(delta: float) -> void:
 	
 	if wall_extencion_window > 0 and current_state != State.DIVE:
 		wall_extencion_window -= 1
+	
+	if in_water == true:
+		_get_water_resistance(delta)
 	
 
 #endregion
@@ -366,16 +384,16 @@ func _state_ground(delta: float) -> void:
 			_change_state(State.SKID); return
 		facing = sign(move)
 		if abs(Gvelocity.x) <= target_speed:
-			Gvelocity.x = move_toward(Gvelocity.x + slope_influence*10, move *RUN_SPEED, ACCEL * delta)
+			Gvelocity.x = move_toward(Gvelocity.x + slope_influence*10, move *RUN_SPEED, ACCEL * delta / (1 + int(in_water)))
 	else:
-		Gvelocity.x = move_toward(Gvelocity.x + slope_influence*10, 0, FRICTION * delta)
+		Gvelocity.x = move_toward(Gvelocity.x + slope_influence*10, 0, FRICTION * delta / (1 + int(in_water)))
 
 	# roll only from dive button
 	if Input.is_action_just_pressed(\"dive\"):
 		_change_state(State.ROLL)
 
 	elif jump_buffer_timer > 0:
-		print(\"jump\")
+		#print(\"jump\")
 		_perform_jump(false)
 		_change_state(State.AIR)
 		up_direction = Vector2(0, -1)
@@ -401,6 +419,11 @@ func _state_ground(delta: float) -> void:
 func _state_air(delta: float) -> void:
 	var move := Input.get_axis(\"left\", \"right\")
 	var wall_dir := (int(wall_check_left.is_colliding())) + (int(wall_check_right.is_colliding())*-1)
+
+	if in_water == true:
+		_change_state(State.WATER)
+		print(\"watery\")
+		return
 
 	if wall_grace_timer > 0  and wall_jump_lockout <= 0:
 		var norm = last_wall_normal
@@ -593,6 +616,7 @@ func _state_bonk(delta: float) -> void:
 		_change_state(State.GROUND)
 
 func _state_backflip(delta: float) -> void:
+	camera.trigger_shake()
 	if backflip_timer > 0 and not is_on_wall() and not is_on_floor():
 		velocity.x = Backflip_vel * (facing*-1)
 		backflip_timer -= 1
@@ -610,9 +634,21 @@ func _state_ledge_grab(delta: float) -> void:
 	var wall_dir := (int(wall_check_left.is_colliding())) + (int(wall_check_right.is_colliding())*-1)
 	var move := Input.get_axis(\"left\",\"right\")
 
+	if ledge_lock == true:
+		velocity = Vector2.ZERO
 	facing = last_wall_normal.x *-1
 	if velocity.y > -100 and wall_dir != 0:
-		velocity = Vector2.ZERO
+		if ledge_lock == false:
+			global_position.y -= 15
+			ledge_lock = true
+			print(\"lock\")
+		else:
+			_change_state(State.WALL)
+			print(\"exit from lock\")
+			return
+		
+	
+	
 	if get_wall_normal().x == move:
 		_change_state(State.AIR)
 		facing = int(move)
@@ -677,6 +713,21 @@ func _state_ledge_pull(delta: float) -> void:
 		velocity.x = ledge_exit_vel/2 * facing 
 		velocity.y = 0
 		_change_state(State.GROUND)
+		return
+
+
+func _state_water_swimming(delta):
+	var move := Input.get_axis(\"left\", \"right\")
+	if is_on_floor():
+		_change_state(State.GROUND)
+		return
+	
+	velocity.x =  move_toward(velocity.x, WATER_SPEED * move, WATER_ACCEL * delta)
+	if Input.is_action_just_pressed(\"jump\"):
+		velocity.y = WATER_BRESTSTROKE_FORCE
+		#print(\"stroke\")
+	if in_water == false:
+		_change_state(State.AIR)
 		return
 	
 #endregion
@@ -766,6 +817,9 @@ func _update_timers(delta: float) -> void:
 		move_and_slide()
 	if not current_state in [State.LEDGE_PULL, State.LEDGE_GRAB, State.LEDGE_JUMP]:
 		ledge_pull_buffer_timer = ledge_pull_buffer_duration
+	
+	if current_state != State.LEDGE_GRAB:
+		ledge_lock = false
 	return
 
 
@@ -842,7 +896,11 @@ func _handle_player_rotation():
 	sprite.rotation = lerp_angle(sprite.rotation, get_floor_normal().angle() + PI / 2, 0.25)
 	
 	
-	
+
+func _get_water_resistance(delta):
+	if velocity.y >= 0:
+		velocity.y /= 1  * 100  * delta
+	#velocity.x /= 1.5  * 1000  * delta
 
 
 #endregion
@@ -864,6 +922,18 @@ script/source = "extends Camera2D
 var target_offset_x := 0.0
 var target_y := 0.0
 var frozen := false # freeze camera on death
+
+@export_group(\"Hit shake\")
+@export var max_shake: float = 10.0
+@export var shake_fade: float = 10.0
+var _shake_strength = max_shake
+
+#var desired_offset = character_body_2d.velocity
+var min_offset = -200
+var max_offset = 200
+# Called when the node enters the scene tree for the first time.
+func trigger_shake()-> void:
+	_shake_strength = max_shake
 
 func _ready() -> void:
 	top_level = true # detach from player movement
@@ -904,6 +974,13 @@ func _process(delta: float) -> void:
 		player.global_position.x + target_offset_x,
 		final_y
 	)
+
+	if _shake_strength > 0:
+		
+		_shake_strength = lerp(_shake_strength, 0.0, shake_fade * delta)
+		offset = Vector2( offset.x + randf_range(-_shake_strength, _shake_strength), offset.y + randf_range(-_shake_strength, _shake_strength))
+	#desired_offset.x = clamp(desired_offset.x, min_offset, max_offset)
+	
 "
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_onrkg"]
@@ -1192,13 +1269,14 @@ animations = [{
 "speed": 5.0
 }]
 
-[node name="CharacterBody2D" type="CharacterBody2D" unique_id=1007483482]
+[node name="CharacterBody2D" type="CharacterBody2D" unique_id=1007483482 groups=["Player"]]
 floor_constant_speed = true
 floor_block_on_wall = false
 floor_max_angle = 1.553343
 floor_snap_length = 12.0
 safe_margin = 0.16
 script = SubResource("GDScript_sh265")
+WATER_ACCEL = 600
 GRAVITY = 2000.0
 WALL_SLIDE_accel = 20
 DIVE_BOOST = 800.0

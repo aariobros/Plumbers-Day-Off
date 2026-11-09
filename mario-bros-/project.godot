@@ -27,6 +27,11 @@ InputManager="*uid://dm6cqp1cnm10c"
 Pauser="*uid://dfk8tvbfmt35t"
 MusicHandler="*uid://dbor3b43xkhoj"
 DiscordManager="*uid://caq2tg662eybx"
+HitStopManager="*uid://8fjir555vlbe"
+
+[global_group]
+
+Player=""
 
 [display]
 

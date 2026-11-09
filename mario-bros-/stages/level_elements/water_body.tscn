@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://1bqjxbadc0eg"]
+
+[ext_resource type="Script" uid="uid://djfbno4sg7mkf" path="res://stages/level_elements/water_body.gd" id="1_irqmq"]
+[ext_resource type="Shader" uid="uid://x3bc4ld4yyaa" path="res://shader_material/water_coloring.gdshader" id="2_w383f"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wyeb1"]
+size = Vector2(31, 31)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wyeb1"]
+shader = ExtResource("2_w383f")
+shader_parameter/water_tint = Color(0, 0.4, 0.8, 1)
+shader_parameter/tint_strength = 0.4
+shader_parameter/wave_speed = 2.0
+shader_parameter/wave_frequency = 20.0
+shader_parameter/wave_amplitude = 0.010000000475
+
+[node name="water" type="Area2D" unique_id=1552496225]
+script = ExtResource("1_irqmq")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=2041305503]
+position = Vector2(0.5, 0.5)
+shape = SubResource("RectangleShape2D_wyeb1")
+
+[node name="water_coloring" type="ColorRect" parent="." unique_id=1518379789]
+modulate = Color(1, 1, 1, 0.5176471)
+light_mask = 2
+visibility_layer = 2
+z_index = 2
+material = SubResource("ShaderMaterial_wyeb1")
+offset_left = -16.0
+offset_top = -16.0
+offset_right = 16.0
+offset_bottom = 16.0
+
+[connection signal="body_entered" from="." to="." method="_on_body_entered"]
+[connection signal="body_exited" from="." to="." method="_on_body_exited"]
